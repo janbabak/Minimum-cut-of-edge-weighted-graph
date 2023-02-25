@@ -30,7 +30,6 @@ struct Vertex {
     }
 
     ~Vertex() {
-        cout << "destructor of vertex: " << id << endl;
         if (neighborsAllocatedSize > 0) {
             delete[] neighbors;
         }

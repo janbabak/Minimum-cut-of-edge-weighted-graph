@@ -7,6 +7,12 @@
 using namespace std;
 
 struct Graph {
+    Vertex *vertexes;
+    int vertexesSize;
+    Edge *edges;
+    int edgesSize;
+    int edgesAllocatedSize;
+
     Graph() : vertexesSize(0), edgesSize(0), edgesAllocatedSize(1) {
         this->vertexes = new Vertex[vertexesSize];
         this->edges = new Edge[edgesAllocatedSize];
@@ -131,10 +137,4 @@ struct Graph {
         }
         return os;
     }
-
-    Vertex *vertexes;
-    int vertexesSize;
-    Edge *edges;
-    int edgesSize;
-    int edgesAllocatedSize;
 };
