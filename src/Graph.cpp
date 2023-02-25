@@ -2,59 +2,41 @@
 #include <iostream>
 
 #include "Edge.cpp"
-#include "Vertex.cpp"
 
 using namespace std;
 
 struct Graph {
-    Vertex *vertexes;
-    int vertexesSize;
-    Edge *edges;
+    int vertexesCount;
     int edgesSize;
     int edgesAllocatedSize;
+    Edge *edges;
 
-    Graph() : vertexesSize(0), edgesSize(0), edgesAllocatedSize(1) {
-        this->vertexes = new Vertex[vertexesSize];
+    Graph() : vertexesCount(0), edgesSize(0), edgesAllocatedSize(1) {
         this->edges = new Edge[edgesAllocatedSize];
     }
 
     // copy constructor
     Graph(const Graph &source)
-        : vertexesSize(source.vertexesSize),
+        : vertexesCount(source.vertexesCount),
           edgesSize(source.edgesSize),
           edgesAllocatedSize(source.edgesAllocatedSize) {
-        this->vertexes = new Vertex[source.vertexesSize];
         this->edges = new Edge[source.edgesAllocatedSize];
-
-        for (int i = 0; i < source.vertexesSize; i++) {
-            this->vertexes[i] = source.vertexes[i];
-        }
-
         for (int i = 0; i < source.edgesSize; i++) {
             this->edges[i] = source.edges[i];
         }
     }
 
-    ~Graph() {
-        delete[] vertexes;
-        delete[] edges;
-    }
+    ~Graph() { delete[] edges; }
 
     // operator ==
     Graph &operator=(const Graph &source) {
         if (&source == this) {
             return *this;
         }
-        vertexesSize = source.vertexesSize;
+        vertexesCount = source.vertexesCount;
         edgesSize = source.edgesSize;
         edgesAllocatedSize = source.edgesAllocatedSize;
-        this->vertexes = new Vertex[source.vertexesSize];
         this->edges = new Edge[source.edgesAllocatedSize];
-
-        for (int i = 0; i < source.vertexesSize; i++) {
-            this->vertexes[i] = source.vertexes[i];
-        }
-
         for (int i = 0; i < source.edgesSize; i++) {
             this->edges[i] = source.edges[i];
         }
@@ -72,12 +54,7 @@ struct Graph {
 
         int number;
 
-        // create vertexes
-        file >> vertexesSize;
-        vertexes = new Vertex[vertexesSize];
-        for (int i = 0; i < vertexesSize; i++) {
-            vertexes[i].id = i;
-        }
+        file >> vertexesCount;
 
         int edgeFromVertexId = 0;
         int edgeToVertexId = 0;
@@ -86,19 +63,16 @@ struct Graph {
             if (number != 0) {
                 addEdge(Edge(edgeFromVertexId, edgeToVertexId, number));
             }
-            edgeToVertexId = (edgeToVertexId + 1) % vertexesSize;
+            edgeToVertexId = (edgeToVertexId + 1) % vertexesCount;
             if (edgeToVertexId == 0) {
                 edgeFromVertexId++;
             }
         }
 
-        return edgeFromVertexId == vertexesSize && edgeToVertexId == 0;
+        return edgeFromVertexId == vertexesCount && edgeToVertexId == 0;
     }
 
     void addEdge(Edge edge) {
-        vertexes[edge.vertexId1].addNeighbor(edge.vertexId2);
-        vertexes[edge.vertexId2].addNeighbor(edge.vertexId1);
-
         // realloc if needed
         if (edgesSize == edgesAllocatedSize) {
             edgesAllocatedSize *= 2;
@@ -116,24 +90,11 @@ struct Graph {
     }
 
     friend ostream &operator<<(ostream &os, const Graph &graph) {
-        os << "vertexes:" << endl;
-        for (int i = 0; i < graph.vertexesSize; i++) {
-            os << "id: " << graph.vertexes[i].id
-               << ", visited: " << graph.vertexes[i].visited
-               << ", isGroupX: " << graph.vertexes[i].isGroupX
-               << ", neighbors: [";
-            for (int j = 0; j < graph.vertexes[i].neighborsSize; j++) {
-                os << graph.vertexes[i].neighbors[j];
-                os << (j == graph.vertexes[i].neighborsSize - 1 ? "" : ", ");
-            }
-            os << "]" << endl;
-        }
+        os << "vertexes count: " << graph.vertexesCount << endl;
         os << "edges:" << endl;
         for (int i = 0; i < graph.edgesSize; i++) {
-            os << "vId1: " << graph.edges[i].vertexId1
-               << ", vId2: " << graph.edges[i].vertexId2
-               << ", weight: " << graph.edges[i].weight
-               << endl;
+            os << "vId1: " << graph.edges[i].vertexId1 << ", vId2: " << graph.edges[i].vertexId2
+               << ", weight: " << graph.edges[i].weight << endl;
         }
         return os;
     }

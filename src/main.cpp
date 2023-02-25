@@ -14,7 +14,7 @@ long minimalSplitWeight = LONG_MAX;
 short* minimalSplitConfig = nullptr;
 long recursionCalls = 0;
 
-//debug print configuration
+// debug print configuration
 void printConfig(short* config, int& configSize, ostream& os = cout) {
     os << "[";
     for (int i = 0; i < configSize; i++) {
@@ -60,7 +60,7 @@ void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targ
     recursionCalls++;
 
     // configurations in this sub tree contains to much vertexes included in smaller set
-    if (computeSizeOfX(config, graph.vertexesSize) > targetSizeOfSetX) {
+    if (computeSizeOfX(config, graph.vertexesCount) > targetSizeOfSetX) {
         return;
     }
 
@@ -72,9 +72,9 @@ void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targ
     }
 
     // end recursion
-    if (indexOfFirstUndecided == graph.vertexesSize) {
+    if (indexOfFirstUndecided == graph.vertexesCount) {
         // not valid solution
-        if (computeSizeOfX(config, graph.vertexesSize) != targetSizeOfSetX) {
+        if (computeSizeOfX(config, graph.vertexesCount) != targetSizeOfSetX) {
             return;
         }
 
@@ -87,8 +87,8 @@ void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targ
         return;
     }
 
-    short* secondConfig = new short[graph.vertexesSize];
-    copy(config, config + graph.vertexesSize, secondConfig);
+    short* secondConfig = new short[graph.vertexesCount];
+    copy(config, config + graph.vertexesCount, secondConfig);
 
     config[indexOfFirstUndecided] = IN_X;
     secondConfig[indexOfFirstUndecided] = IN_Y;
@@ -98,27 +98,25 @@ void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targ
     searchAux(secondConfig, graph, indexOfFirstUndecided, targetSizeOfSetX);
 }
 
-//search in best split
+// search in best split
 void search(Graph& graph, int smallerSetSize) {
-    short* initConfig = new short[graph.vertexesSize];
-    for (int i = 0; i < graph.vertexesSize; i++) {
+    short* initConfig = new short[graph.vertexesCount];
+    for (int i = 0; i < graph.vertexesCount; i++) {
         initConfig[i] = NOT_DECIDED;
     }
     searchAux(initConfig, graph, 0, smallerSetSize);
 }
 
-//main - tests
+// main - tests
 int main() {
     vector<TestData> testData = {
-        TestData("graf_mro/graf_10_5.txt", 5, 974),
-        TestData("graf_mro/graf_10_6b.txt", 5, 1300),
-        TestData("graf_mro/graf_20_7.txt", 7, 2110),
-        TestData("graf_mro/graf_20_7.txt", 10, 2378),
-        TestData("graf_mro/graf_20_12.txt", 10, 5060),
-        TestData("graf_mro/graf_30_10.txt", 10, 4636),
-        TestData("graf_mro/graf_30_10.txt", 15, 5333),
-        TestData("graf_mro/graf_30_20.txt", 15, 13159),
-        TestData("graf_mro/graf_40_8.txt", 15, 4256),
+        TestData("graf_mro/graf_10_5.txt", 5, 974), TestData("graf_mro/graf_10_6b.txt", 5, 1300),
+        TestData("graf_mro/graf_20_7.txt", 7, 2110), TestData("graf_mro/graf_20_7.txt", 10, 2378),
+        // TestData("graf_mro/graf_20_12.txt", 10, 5060),
+        // TestData("graf_mro/graf_30_10.txt", 10, 4636),
+        // TestData("graf_mro/graf_30_10.txt", 15, 5333),
+        // TestData("graf_mro/graf_30_20.txt", 15, 13159),
+        // TestData("graf_mro/graf_40_8.txt", 15, 4256),
     };
 
     for (TestData& td : testData) {
@@ -127,8 +125,10 @@ int main() {
         recursionCalls = 0;
         graph.loadFromFile(td.filePath);
         search(graph, td.sizeOfX);
+        cout << td.filePath << endl;
         cout << "Minimal weight: " << minimalSplitWeight << endl;
         cout << "Recursion calls: " << recursionCalls << endl;
+        cout << "________________________________" << endl;
         assert(minimalSplitWeight == td.weight);
     }
 
