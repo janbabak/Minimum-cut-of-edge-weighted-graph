@@ -17,11 +17,11 @@ run: $(TARGET)
 	./$(TARGET)
 
 $(TARGET): $(BUILD_DIR)/main.o $(BUILD_DIR)/Graph.o $(BUILD_DIR)/TestData.o $(BUILD_DIR)/Edge.o
-	$(CXX) $(CXX_FLAGS) $^ -o $@
+	$(CXX) $(CXX_FLAGS) $^ -o $@ -g
 
 $(BUILD_DIR)/%.o: src/%.cpp
 	$(MKDIR) $(BUILD_DIR)
-	$(CXX) $(CXX_FLAGS) $< -c -o $@
+	$(CXX) $(CXX_FLAGS) $< -c -o $@ -g
 
 .PHONY: clean
 clean:

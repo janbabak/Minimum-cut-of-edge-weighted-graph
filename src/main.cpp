@@ -1,5 +1,7 @@
 #include <iostream>
 #include <vector>
+#include <climits>
+#include <cassert>
 
 #include "Graph.cpp"
 #include "TestData.cpp"
@@ -61,7 +63,6 @@ void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targ
 
     // configurations in this sub tree contains to much vertexes included in smaller set
     if (computeSizeOfX(config, graph.vertexesCount) > targetSizeOfSetX) {
-        delete[] config;
         return;
     }
 
@@ -69,7 +70,6 @@ void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targ
 
     // all configurations in this sub tree are worse than best solution
     if (lowerBoundWeight > minimalSplitWeight) {
-        delete[] config;
         return;
     }
 
@@ -77,7 +77,6 @@ void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targ
     if (indexOfFirstUndecided == graph.vertexesCount) {
         // not valid solution
         if (computeSizeOfX(config, graph.vertexesCount) != targetSizeOfSetX) {
-            delete[] config;
             return;
         }
 
@@ -85,45 +84,42 @@ void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targ
         // if best, save it
         if (weight < minimalSplitWeight) {
             minimalSplitWeight = weight;
-            if (minimalSplitConfig != nullptr) {
-                delete[] minimalSplitConfig;
+            for (int i = 0; i < graph.vertexesCount; i++) {
+            	minimalSplitConfig[i] = config[i];
             }
-            minimalSplitConfig = config;
         }
         return;
     }
 
-    short* secondConfig = new short[graph.vertexesCount];
-    // copy(config, config + graph.vertexesCount, secondConfig);
-    for (int i = 0; i < graph.vertexesCount; i++) {
-        secondConfig[i] = config[i];
-    }
-
     config[indexOfFirstUndecided] = IN_X;
-    secondConfig[indexOfFirstUndecided] = IN_Y;
     indexOfFirstUndecided++;
-
     searchAux(config, graph, indexOfFirstUndecided, targetSizeOfSetX);
-    searchAux(secondConfig, graph, indexOfFirstUndecided, targetSizeOfSetX);
+    
+    config[indexOfFirstUndecided - 1] = IN_Y;
+    for (int i = indexOfFirstUndecided; i < graph.vertexesCount; i++) {
+        config[i] = NOT_DECIDED;
+    }
+    searchAux(config, graph, indexOfFirstUndecided, targetSizeOfSetX);
 }
 
 // search in best split
 void search(Graph& graph, int smallerSetSize) {
     short* initConfig = new short[graph.vertexesCount];
+    minimalSplitConfig = new short[graph.vertexesCount];
     for (int i = 0; i < graph.vertexesCount; i++) {
         initConfig[i] = NOT_DECIDED;
     }
     searchAux(initConfig, graph, 0, smallerSetSize);
+    delete[] initConfig;
 }
 
 // main - tests
 int main() {
     vector<TestData> testData = {
-        TestData("graf_mro/graf_10_5.txt", 5, 974),
-        TestData("graf_mro/graf_10_6b.txt", 5, 1300),
-        // TestData("graf_mro/graf_20_7.txt", 7, 2110),
-        // TestData("graf_mro/graf_20_7.txt", 10, 2378),
-        // TestData("graf_mro/graf_20_12.txt", 10, 5060),
+        TestData("graf_mro/graf_10_5.txt", 5, 974), TestData("graf_mro/graf_10_6b.txt", 5, 1300),
+        TestData("graf_mro/graf_20_7.txt", 7, 2110),
+        TestData("graf_mro/graf_20_7.txt", 10, 2378),
+        TestData("graf_mro/graf_20_12.txt", 10, 5060),
         // TestData("graf_mro/graf_30_10.txt", 10, 4636),
         // TestData("graf_mro/graf_30_10.txt", 15, 5333),
         // TestData("graf_mro/graf_30_20.txt", 15, 13159),
@@ -143,8 +139,8 @@ int main() {
         cout << "________________________________" << endl;
         assert(minimalSplitWeight == td.weight);
         delete[] minimalSplitConfig;
-        minimalSplitConfig = nullptr;
     }
 
     return 0;
 }
+
