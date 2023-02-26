@@ -61,6 +61,7 @@ void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targ
 
     // configurations in this sub tree contains to much vertexes included in smaller set
     if (computeSizeOfX(config, graph.vertexesCount) > targetSizeOfSetX) {
+        delete[] config;
         return;
     }
 
@@ -68,6 +69,7 @@ void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targ
 
     // all configurations in this sub tree are worse than best solution
     if (lowerBoundWeight > minimalSplitWeight) {
+        delete[] config;
         return;
     }
 
@@ -75,6 +77,7 @@ void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targ
     if (indexOfFirstUndecided == graph.vertexesCount) {
         // not valid solution
         if (computeSizeOfX(config, graph.vertexesCount) != targetSizeOfSetX) {
+            delete[] config;
             return;
         }
 
@@ -82,13 +85,19 @@ void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targ
         // if best, save it
         if (weight < minimalSplitWeight) {
             minimalSplitWeight = weight;
+            if (minimalSplitConfig != nullptr) {
+                delete[] minimalSplitConfig;
+            }
             minimalSplitConfig = config;
         }
         return;
     }
 
     short* secondConfig = new short[graph.vertexesCount];
-    copy(config, config + graph.vertexesCount, secondConfig);
+    // copy(config, config + graph.vertexesCount, secondConfig);
+    for (int i = 0; i < graph.vertexesCount; i++) {
+        secondConfig[i] = config[i];
+    }
 
     config[indexOfFirstUndecided] = IN_X;
     secondConfig[indexOfFirstUndecided] = IN_Y;
@@ -110,8 +119,10 @@ void search(Graph& graph, int smallerSetSize) {
 // main - tests
 int main() {
     vector<TestData> testData = {
-        TestData("graf_mro/graf_10_5.txt", 5, 974), TestData("graf_mro/graf_10_6b.txt", 5, 1300),
-        TestData("graf_mro/graf_20_7.txt", 7, 2110), TestData("graf_mro/graf_20_7.txt", 10, 2378),
+        TestData("graf_mro/graf_10_5.txt", 5, 974),
+        TestData("graf_mro/graf_10_6b.txt", 5, 1300),
+        // TestData("graf_mro/graf_20_7.txt", 7, 2110),
+        // TestData("graf_mro/graf_20_7.txt", 10, 2378),
         // TestData("graf_mro/graf_20_12.txt", 10, 5060),
         // TestData("graf_mro/graf_30_10.txt", 10, 4636),
         // TestData("graf_mro/graf_30_10.txt", 15, 5333),
@@ -128,8 +139,11 @@ int main() {
         cout << td.filePath << endl;
         cout << "Minimal weight: " << minimalSplitWeight << endl;
         cout << "Recursion calls: " << recursionCalls << endl;
+        printConfig(minimalSplitConfig, graph.vertexesCount);
         cout << "________________________________" << endl;
         assert(minimalSplitWeight == td.weight);
+        delete[] minimalSplitConfig;
+        minimalSplitConfig = nullptr;
     }
 
     return 0;
