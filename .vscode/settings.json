@@ -1,0 +1,19 @@
+{
+    "files.associations": {
+        "*.html": "html",
+        "__bit_reference": "cpp",
+        "__string": "cpp",
+        "deque": "cpp",
+        "filesystem": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "iostream": "cpp"
+    },
+    "makefile.launchConfigurations": [
+        {
+            "cwd": "/work",
+            "binaryPath": "/work/pdp",
+            "binaryArgs": []
+        }
+    ]
+}
