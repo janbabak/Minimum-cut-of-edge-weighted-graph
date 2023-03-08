@@ -185,7 +185,6 @@ void searchAuxParallel(short* config, Graph& graph, int indexOfFirstUndecided,
     indexOfFirstUndecided++;
 
     if (graph.vertexesCount - indexOfFirstUndecided > 3) {
-        // printf("parallel\n");
 #pragma omp task
         searchAuxParallel(config, graph, indexOfFirstUndecided, targetSizeOfSetX);
 
@@ -195,7 +194,6 @@ void searchAuxParallel(short* config, Graph& graph, int indexOfFirstUndecided,
 #pragma omp taskwait
         delete[] secondConfig;
     } else {
-        // printf("sequential\n");
         searchAuxSequential(config, graph, indexOfFirstUndecided, targetSizeOfSetX);
         searchAuxSequential(secondConfig, graph, indexOfFirstUndecided, targetSizeOfSetX);
         delete[] secondConfig;
