@@ -104,7 +104,6 @@ void searchAuxSequential(short* config, Graph& graph, int indexOfFirstUndecided,
         }
 
         long weight = computeSplitWeight(config, graph);
-
         // if best, save it
         if (weight < minimalSplitWeight) {
             minimalSplitWeight = weight;
@@ -115,20 +114,15 @@ void searchAuxSequential(short* config, Graph& graph, int indexOfFirstUndecided,
         return;
     }
 
-    short* secondConfig = new short[graph.vertexesCount];
-    for (int i = 0; i < graph.vertexesCount; i++) {
-        secondConfig[i] = config[i];
-    }
-
     config[indexOfFirstUndecided] = IN_X;
-    secondConfig[indexOfFirstUndecided] = IN_Y;
-
     indexOfFirstUndecided++;
-
     searchAuxSequential(config, graph, indexOfFirstUndecided, targetSizeOfSetX);
-    searchAuxSequential(secondConfig, graph, indexOfFirstUndecided, targetSizeOfSetX);
 
-    delete[] secondConfig;
+    config[indexOfFirstUndecided - 1] = IN_Y;
+    for (int i = indexOfFirstUndecided; i < graph.vertexesCount; i++) {
+        config[i] = NOT_DECIDED;
+    }
+    searchAuxSequential(config, graph, indexOfFirstUndecided, targetSizeOfSetX);
 }
 
 // auxiliary recursive function, tries all configurations
