@@ -1,7 +1,7 @@
 TARGET = pdp
 
 CXX = g++
-CXX_FLAGS = -Wall -pedantic -Wextra -std=c++20 -fopenmp
+CXX_FLAGS = -Wall -pedantic -Wextra -std=c++20 -fopenmp -O3
 
 MKDIR = mkdir -p
 BUILD_DIR = build

@@ -155,13 +155,15 @@ void searchAuxParallel(short* config, Graph& graph, int indexOfFirstUndecided,
 
         long weight = computeSplitWeight(config, graph);
 
+        if (weight < minimalSplitWeight) {
 #pragma omp critical
-        {
-            // if best, save it
-            if (weight < minimalSplitWeight) {
-                minimalSplitWeight = weight;
-                for (int i = 0; i < graph.vertexesCount; i++) {
-                    minimalSplitConfig[i] = config[i];
+            {
+                // if best, save it
+                if (weight < minimalSplitWeight) {
+                    minimalSplitWeight = weight;
+                    for (int i = 0; i < graph.vertexesCount; i++) {
+                        minimalSplitConfig[i] = config[i];
+                    }
                 }
             }
         }
@@ -202,7 +204,7 @@ void search(Graph& graph, int smallerSetSize) {
         initConfig[i] = NOT_DECIDED;
     }
 
-#pragma omp parallel num_threads(10)
+#pragma omp parallel
     {
 #pragma omp single
         searchAuxParallel(initConfig, graph, 0, smallerSetSize);
@@ -219,8 +221,8 @@ int main() {
         TestData("graf_mro/graf_20_7.txt", 10, 2378),
         TestData("graf_mro/graf_20_12.txt", 10, 5060),
         TestData("graf_mro/graf_30_10.txt", 10, 4636),
-        //  TestData("graf_mro/graf_30_10.txt", 15, 5333),
-        //  TestData("graf_mro/graf_30_20.txt", 15, 13159),
+        TestData("graf_mro/graf_30_10.txt", 15, 5333),
+        TestData("graf_mro/graf_30_20.txt", 15, 13159),
         //   TestData("graf_mro/graf_40_8.txt", 15, 4256),
     };
 
