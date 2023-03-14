@@ -127,7 +127,7 @@ void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targ
     searchAux(config, graph, indexOfFirstUndecided, targetSizeOfSetX);
 }
 
-void generateTaskPoolAux(short* config, int size, int indexOfFirstUndecided) {
+void produceTaskPoolAux(short* config, int size, int indexOfFirstUndecided) {
     if (indexOfFirstUndecided >= size || indexOfFirstUndecided >= maxPregeneratedLevel) {
         taskPool.push_back(config);
         return;
@@ -144,43 +144,51 @@ void generateTaskPoolAux(short* config, int size, int indexOfFirstUndecided) {
 
     indexOfFirstUndecided++;
 
-    generateTaskPoolAux(config, size, indexOfFirstUndecided);
-    generateTaskPoolAux(secondConfig, size, indexOfFirstUndecided);
+    produceTaskPoolAux(config, size, indexOfFirstUndecided);
+    produceTaskPoolAux(secondConfig, size, indexOfFirstUndecided);
 }
 
-void generateTaskPool(Graph& graph) {
+//produce initial configurations
+void produceTaskPool(Graph& graph) {
     short* config = new short[graph.vertexesCount];
     for (int i = 0; i < graph.vertexesCount; i++) {
         config[i] = NOT_DECIDED;
     }
-    generateTaskPoolAux(config, graph.vertexesCount, 0);
+    produceTaskPoolAux(config, graph.vertexesCount, 0);
+}
+
+//consume configuraitons
+void consumeTaskPool(Graph& graph, int smallerSetSize) {
+    int indexOfFirstUndecided = min(maxPregeneratedLevel, graph.vertexesCount);
+
+    for (size_t i = 0; i < taskPool.size(); i++) {
+        // printConfig(taskPool[i], graph.vertexesCount);
+        searchAux(taskPool[i], graph, indexOfFirstUndecided, smallerSetSize);
+        delete[] taskPool[i];
+    }
 }
 
 // search in best split
 void search(Graph& graph, int smallerSetSize) {
-    // short* initConfig = new short[graph.vertexesCount];
-    // minimalSplitConfig = new short[graph.vertexesCount];
-    // for (int i = 0; i < graph.vertexesCount; i++) {
-    //     initConfig[i] = NOT_DECIDED;
-    // }
+    minimalSplitConfig = new short[graph.vertexesCount];
 
-    generateTaskPool(graph);
+    produceTaskPool(graph);
 
-    for (int i = 0; i < taskPool.size(); i++) {
-        printConfig(taskPool[i], graph.vertexesCount);
-        delete[] taskPool[i];
-    }
+    consumeTaskPool(graph, smallerSetSize);
+}
 
-    // searchAux(initConfig, graph, 0, smallerSetSize);
-    // delete[] initConfig;
+//reset for new test case
+void reset() {
+    minimalSplitWeight = LONG_MAX;
+    taskPool = {};
 }
 
 // main - tests
 int main() {
     vector<TestData> testData = {
         TestData("graf_mro/graf_10_5.txt", 5, 974),
-        // TestData("graf_mro/graf_10_6b.txt", 5, 1300),
-        // TestData("graf_mro/graf_20_7.txt", 7, 2110),
+        TestData("graf_mro/graf_10_6b.txt", 5, 1300),
+        TestData("graf_mro/graf_20_7.txt", 7, 2110),
         // TestData("graf_mro/graf_20_7.txt", 10, 2378),
         // TestData("graf_mro/graf_20_12.txt", 10, 5060),
         // TestData("graf_mro/graf_30_10.txt", 10, 4636),
@@ -190,18 +198,16 @@ int main() {
     };
 
     for (TestData& td : testData) {
+        reset();
         Graph graph = Graph();
-        minimalSplitWeight = LONG_MAX;
-        recursionCalls = 0;
         graph.loadFromFile(td.filePath);
         search(graph, td.sizeOfX);
-        // cout << td.filePath << endl;
-        // cout << "Minimal weight: " << minimalSplitWeight << endl;
-        // cout << "Recursion calls: " << recursionCalls << endl;
-        // printConfig(minimalSplitConfig, graph.vertexesCount);
-        // cout << "________________________________" << endl;
-        // assert(minimalSplitWeight == td.weight);
-        // delete[] minimalSplitConfig;
+        cout << td.filePath << endl;
+        cout << "Minimal weight: " << minimalSplitWeight << endl;
+        printConfig(minimalSplitConfig, graph.vertexesCount);
+        cout << "________________________________" << endl;
+        assert(minimalSplitWeight == td.weight);
+        delete[] minimalSplitConfig;
     }
 
     return 0;
