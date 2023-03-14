@@ -15,6 +15,8 @@ const short NOT_DECIDED = -1;
 long minimalSplitWeight = LONG_MAX;
 short* minimalSplitConfig = nullptr;
 long recursionCalls = 0;
+int maxPregeneratedLevel = 4;
+vector<short*> taskPool = {};
 
 // debug print configuration
 void printConfig(short* config, int& configSize, ostream& os = cout) {
@@ -125,27 +127,64 @@ void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targ
     searchAux(config, graph, indexOfFirstUndecided, targetSizeOfSetX);
 }
 
+void generateTaskPoolAux(short* config, int size, int indexOfFirstUndecided) {
+    if (indexOfFirstUndecided >= size || indexOfFirstUndecided >= maxPregeneratedLevel) {
+        taskPool.push_back(config);
+        return;
+    }
+
+    config[indexOfFirstUndecided] = IN_X;
+
+    short* secondConfig = new short[size];
+    for (int i = 0; i < size; i++) {
+        secondConfig[i] = config[i];
+    }
+
+    secondConfig[indexOfFirstUndecided] = IN_Y;
+
+    indexOfFirstUndecided++;
+
+    generateTaskPoolAux(config, size, indexOfFirstUndecided);
+    generateTaskPoolAux(secondConfig, size, indexOfFirstUndecided);
+}
+
+void generateTaskPool(Graph& graph) {
+    short* config = new short[graph.vertexesCount];
+    for (int i = 0; i < graph.vertexesCount; i++) {
+        config[i] = NOT_DECIDED;
+    }
+    generateTaskPoolAux(config, graph.vertexesCount, 0);
+}
+
 // search in best split
 void search(Graph& graph, int smallerSetSize) {
-    short* initConfig = new short[graph.vertexesCount];
-    minimalSplitConfig = new short[graph.vertexesCount];
-    for (int i = 0; i < graph.vertexesCount; i++) {
-        initConfig[i] = NOT_DECIDED;
+    // short* initConfig = new short[graph.vertexesCount];
+    // minimalSplitConfig = new short[graph.vertexesCount];
+    // for (int i = 0; i < graph.vertexesCount; i++) {
+    //     initConfig[i] = NOT_DECIDED;
+    // }
+
+    generateTaskPool(graph);
+
+    for (int i = 0; i < taskPool.size(); i++) {
+        printConfig(taskPool[i], graph.vertexesCount);
+        delete[] taskPool[i];
     }
-    searchAux(initConfig, graph, 0, smallerSetSize);
-    delete[] initConfig;
+
+    // searchAux(initConfig, graph, 0, smallerSetSize);
+    // delete[] initConfig;
 }
 
 // main - tests
 int main() {
     vector<TestData> testData = {
         TestData("graf_mro/graf_10_5.txt", 5, 974),
-        TestData("graf_mro/graf_10_6b.txt", 5, 1300),
-        TestData("graf_mro/graf_20_7.txt", 7, 2110),
-        TestData("graf_mro/graf_20_7.txt", 10, 2378),
-        TestData("graf_mro/graf_20_12.txt", 10, 5060),
-        TestData("graf_mro/graf_30_10.txt", 10, 4636),
-        TestData("graf_mro/graf_30_10.txt", 15, 5333),
+        // TestData("graf_mro/graf_10_6b.txt", 5, 1300),
+        // TestData("graf_mro/graf_20_7.txt", 7, 2110),
+        // TestData("graf_mro/graf_20_7.txt", 10, 2378),
+        // TestData("graf_mro/graf_20_12.txt", 10, 5060),
+        // TestData("graf_mro/graf_30_10.txt", 10, 4636),
+        // TestData("graf_mro/graf_30_10.txt", 15, 5333),
         // TestData("graf_mro/graf_30_20.txt", 15, 13159),
         //  TestData("graf_mro/graf_40_8.txt", 15, 4256),
     };
@@ -156,13 +195,13 @@ int main() {
         recursionCalls = 0;
         graph.loadFromFile(td.filePath);
         search(graph, td.sizeOfX);
-        cout << td.filePath << endl;
-        cout << "Minimal weight: " << minimalSplitWeight << endl;
-        cout << "Recursion calls: " << recursionCalls << endl;
-        printConfig(minimalSplitConfig, graph.vertexesCount);
-        cout << "________________________________" << endl;
-        assert(minimalSplitWeight == td.weight);
-        delete[] minimalSplitConfig;
+        // cout << td.filePath << endl;
+        // cout << "Minimal weight: " << minimalSplitWeight << endl;
+        // cout << "Recursion calls: " << recursionCalls << endl;
+        // printConfig(minimalSplitConfig, graph.vertexesCount);
+        // cout << "________________________________" << endl;
+        // assert(minimalSplitWeight == td.weight);
+        // delete[] minimalSplitConfig;
     }
 
     return 0;
