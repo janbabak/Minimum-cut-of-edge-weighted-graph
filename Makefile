@@ -1,7 +1,7 @@
 TARGET = pdp
 
 CXX = g++
-CXX_FLAGS = -Wall -pedantic -Wextra -std=c++20
+CXX_FLAGS = -Wall -pedantic -Wextra -std=c++20 -fopenmp -O3
 
 MKDIR = mkdir -p
 BUILD_DIR = build
@@ -15,6 +15,10 @@ compile: $(TARGET)
 .PHONY: run
 run: $(TARGET)
 	./$(TARGET)
+
+.PHONY: runMemCheck
+runMemCheck: $(TARGET)
+	valgrind ./$(TARGET)
 
 $(TARGET): $(BUILD_DIR)/main.o $(BUILD_DIR)/Graph.o $(BUILD_DIR)/TestData.o $(BUILD_DIR)/Edge.o
 	$(CXX) $(CXX_FLAGS) $^ -o $@ -g
