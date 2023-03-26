@@ -29,19 +29,22 @@ void printConfig(short* config, int& configSize, ostream& os = cout) {
     }
 }
 
-// compute number of vertexes in X set from configuration
-int computeSizeOfX(short* config, int& configurationSize) {
-    int count = 0;
+// compute number of vertexes in (X set, Y set) from configuration
+pair<int, int> computeSizeOfXAndY(short* config, int& configurationSize) {
+    int countX = 0;
+    int countY = 0;
 
     for (int i = 0; i < configurationSize; i++) {
         if (config[i] == IN_X) {
-            count++;
-        } else if (config[i] == NOT_DECIDED) {
-            return count;  // all following vertexes are not decided
+            countX++;
+        } else if (config[i] == IN_Y) {
+            countY++;
+        } else {
+            return make_pair(countX, countY);  // all following vertexes are not decided
         }
     }
 
-    return count;
+    return make_pair(countX, countY);
 }
 
 // compute sum of weights of edges, that has one vertex in X and second in Y
@@ -79,7 +82,9 @@ void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targ
     recursionCalls++;
 
     // configurations in this sub tree contains to much vertexes included in smaller set
-    if (computeSizeOfX(config, graph.vertexesCount) > targetSizeOfSetX) {
+    pair<int, int> sizeOfXAndY = computeSizeOfXAndY(config, graph.vertexesCount);
+    if (sizeOfXAndY.first > targetSizeOfSetX ||
+        sizeOfXAndY.second > graph.vertexesCount - targetSizeOfSetX) {
         return;
     }
 
@@ -99,7 +104,7 @@ void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targ
     // end recursion
     if (indexOfFirstUndecided == graph.vertexesCount) {
         // not valid solution
-        if (computeSizeOfX(config, graph.vertexesCount) != targetSizeOfSetX) {
+        if (computeSizeOfXAndY(config, graph.vertexesCount).first != targetSizeOfSetX) {
             return;
         }
 
