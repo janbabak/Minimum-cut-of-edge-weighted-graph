@@ -30,19 +30,22 @@ void printConfig(short* config, int& configSize, ostream& os = cout) {
     }
 }
 
-// compute number of vertexes in X set from configuration
-int computeSizeOfX(short* config, int& configurationSize) {
-    int count = 0;
+// compute number of vertexes in (X set, Y set) from configuration
+pair<int, int> computeSizeOfXAndY(short* config, int& configurationSize) {
+    int countX = 0;
+    int countY = 0;
 
     for (int i = 0; i < configurationSize; i++) {
         if (config[i] == IN_X) {
-            count++;
-        } else if (config[i] == NOT_DECIDED) {
-            return count;  // all following vertexes are not decided
+            countX++;
+        } else if (config[i] == IN_Y) {
+            countY++;
+        } else {
+            return make_pair(countX, countY);  // all following vertexes are not decided
         }
     }
 
-    return count;
+    return make_pair(countX, countY);
 }
 
 // compute sum of weights of edges, that has one vertex in X and second in Y
@@ -79,7 +82,9 @@ long lowerBoundOfUndecidedPart(short* config, Graph& graph, int indexOfFirstUnde
 void searchAuxSequential(short* config, Graph& graph, int indexOfFirstUndecided,
                          int& targetSizeOfSetX) {
     // configurations in this sub tree contains to much vertexes included in smaller set
-    if (computeSizeOfX(config, graph.vertexesCount) > targetSizeOfSetX) {
+    pair<int, int> sizeOfXAndY = computeSizeOfXAndY(config, graph.vertexesCount);
+    if (sizeOfXAndY.first > targetSizeOfSetX ||
+        sizeOfXAndY.second > graph.vertexesCount - targetSizeOfSetX) {
         return;
     }
 
@@ -99,18 +104,24 @@ void searchAuxSequential(short* config, Graph& graph, int indexOfFirstUndecided,
     // end recursion
     if (indexOfFirstUndecided == graph.vertexesCount) {
         // not valid solution
-        if (computeSizeOfX(config, graph.vertexesCount) != targetSizeOfSetX) {
+        if (computeSizeOfXAndY(config, graph.vertexesCount).first != targetSizeOfSetX) {
             return;
         }
 
         long weight = computeSplitWeight(config, graph);
         // if best, save it
         if (weight < minimalSplitWeight) {
-            minimalSplitWeight = weight;
-            for (int i = 0; i < graph.vertexesCount; i++) {
-                minimalSplitConfig[i] = config[i];
+#pragma omp critical
+            {
+                if (weight < minimalSplitWeight) {
+                    minimalSplitWeight = weight;
+                    for (int i = 0; i < graph.vertexesCount; i++) {
+                        minimalSplitConfig[i] = config[i];
+                    }
+                }
             }
         }
+
         return;
     }
 
@@ -129,7 +140,9 @@ void searchAuxSequential(short* config, Graph& graph, int indexOfFirstUndecided,
 void searchAuxParallel(short* config, Graph& graph, int indexOfFirstUndecided,
                        int& targetSizeOfSetX) {
     // configurations in this sub tree contains to much vertexes included in smaller set
-    if (computeSizeOfX(config, graph.vertexesCount) > targetSizeOfSetX) {
+    pair<int, int> sizeOfXAndY = computeSizeOfXAndY(config, graph.vertexesCount);
+    if (sizeOfXAndY.first > targetSizeOfSetX ||
+        sizeOfXAndY.second > graph.vertexesCount - targetSizeOfSetX) {
         return;
     }
 
@@ -149,7 +162,7 @@ void searchAuxParallel(short* config, Graph& graph, int indexOfFirstUndecided,
     // end recursion
     if (indexOfFirstUndecided == graph.vertexesCount) {
         // not valid solution
-        if (computeSizeOfX(config, graph.vertexesCount) != targetSizeOfSetX) {
+        if (computeSizeOfXAndY(config, graph.vertexesCount).first != targetSizeOfSetX) {
             return;
         }
 
