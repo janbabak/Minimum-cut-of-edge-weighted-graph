@@ -29,21 +29,22 @@ int maxPregeneratedLevelFromMaster = 3;  // number of filled cells of config in 
 int maxPregeneratedLevelFromSlave = 5;   // number of filled cells of config in slave task pool
 int smallerSetSize;                      // size of smaler set X
 vector<short*> taskPool = {};
+Graph graph;
 int configLength;
+MPI_Datatype MPI_Result;
 
 struct Result {
+    long minimalSplitWeight;
     short* minimalSplitConfig;
-    int minimalSplitWeight;
 
-    Result(short* config, int weight) {
+    Result(short* config, long weight) {
         minimalSplitConfig = config;
         minimalSplitWeight = weight;
     }
 
     explicit Result() {
-        cout << "result init with size " << configLength << endl;
         minimalSplitConfig = new short[configLength];
-        minimalSplitWeight = -1;
+        minimalSplitWeight = LONG_MAX;
     }
 
     // ~Result() { delete[] minimalSplitConfig; }
@@ -51,12 +52,15 @@ struct Result {
     long size() { return sizeof(minimalSplitWeight) + sizeof(*minimalSplitConfig) * configLength; }
 } typedef Result;
 
+// return true if current process is master, false otherwise
+bool isMaster() { return processId == MASTER; }
+
 // debug print configuration
-void printConfig(short* config, int& configSize, ostream& os = cout) {
+void printConfig(short* config, ostream& os = cout) {
     os << "[";
-    for (int i = 0; i < configSize; i++) {
+    for (int i = 0; i < configLength; i++) {
         os << config[i];
-        if (i == configSize - 1) {
+        if (i == configLength - 1) {
             os << "]" << endl;
         } else {
             os << ", ";
@@ -83,7 +87,7 @@ pair<int, int> computeSizeOfXAndY(short* config, int& configurationSize) {
 }
 
 // compute sum of weights of edges, that has one vertex in X and second in Y
-long computeSplitWeight(short* config, Graph& graph) {
+long computeSplitWeight(short* config) {
     long weight = 0;
 
     for (int i = 0; i < graph.edgesSize; i++) {
@@ -96,15 +100,14 @@ long computeSplitWeight(short* config, Graph& graph) {
 }
 
 // compute lower bound of undecided part of vertexes
-long lowerBoundOfUndecidedPart(short* config, Graph& graph, int indexOfFirstUndecided,
-                               long weightOfDecidedPart) {
+long lowerBoundOfUndecidedPart(short* config, int indexOfFirstUndecided, long weightOfDecidedPart) {
     long lowerBound = 0;
 
-    for (int i = indexOfFirstUndecided; i < graph.vertexesCount; i++) {
+    for (int i = indexOfFirstUndecided; i < configLength; i++) {
         config[i] = IN_X;
-        long weightWhenInX = computeSplitWeight(config, graph);
+        long weightWhenInX = computeSplitWeight(config);
         config[i] = IN_Y;
-        long weightWhenInY = computeSplitWeight(config, graph);
+        long weightWhenInY = computeSplitWeight(config);
         lowerBound += (min(weightWhenInX, weightWhenInY) - weightOfDecidedPart);
         config[i] = NOT_DECIDED;
     }
@@ -113,15 +116,15 @@ long lowerBoundOfUndecidedPart(short* config, Graph& graph, int indexOfFirstUnde
 }
 
 // auxiliary recursive function, tries all configurations
-void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targetSizeOfSetX) {
+void searchAux(short* config, int indexOfFirstUndecided, int& targetSizeOfSetX) {
     // configurations in this sub tree contains to much vertexes included in smaller set
-    pair<int, int> sizeOfXAndY = computeSizeOfXAndY(config, graph.vertexesCount);
+    pair<int, int> sizeOfXAndY = computeSizeOfXAndY(config, configLength);
     if (sizeOfXAndY.first > targetSizeOfSetX ||
-        sizeOfXAndY.second > graph.vertexesCount - targetSizeOfSetX) {
+        sizeOfXAndY.second > configLength - targetSizeOfSetX) {
         return;
     }
 
-    long weightOfDecidedPart = computeSplitWeight(config, graph);
+    long weightOfDecidedPart = computeSplitWeight(config);
 
     // all configurations in this sub tree are worse than best solution
     if (weightOfDecidedPart > minimalSplitWeight) {
@@ -129,28 +132,26 @@ void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targ
     }
 
     if (weightOfDecidedPart +
-            lowerBoundOfUndecidedPart(config, graph, indexOfFirstUndecided, weightOfDecidedPart) >
+            lowerBoundOfUndecidedPart(config, indexOfFirstUndecided, weightOfDecidedPart) >
         minimalSplitWeight) {
         return;
     }
 
     // end recursion
-    if (indexOfFirstUndecided == graph.vertexesCount) {
+    if (indexOfFirstUndecided == configLength) {
         // not valid solution
-        if (computeSizeOfXAndY(config, graph.vertexesCount).first != targetSizeOfSetX) {
+        if (computeSizeOfXAndY(config, configLength).first != targetSizeOfSetX) {
             return;
         }
 
-        long weight = computeSplitWeight(config, graph);
+        long weight = computeSplitWeight(config);
         // if best, save it
         if (weight < minimalSplitWeight) {
 #pragma omp critical
             {
                 if (weight < minimalSplitWeight) {
                     minimalSplitWeight = weight;
-                    for (int i = 0; i < graph.vertexesCount; i++) {
-                        minimalSplitConfig[i] = config[i];
-                    }
+                    copy(config, config + configLength, minimalSplitConfig);
                 }
             }
         }
@@ -159,13 +160,13 @@ void searchAux(short* config, Graph& graph, int indexOfFirstUndecided, int& targ
 
     config[indexOfFirstUndecided] = IN_X;
     indexOfFirstUndecided++;
-    searchAux(config, graph, indexOfFirstUndecided, targetSizeOfSetX);
+    searchAux(config, indexOfFirstUndecided, targetSizeOfSetX);
 
     config[indexOfFirstUndecided - 1] = IN_Y;
-    for (int i = indexOfFirstUndecided; i < graph.vertexesCount; i++) {
+    for (int i = indexOfFirstUndecided; i < configLength; i++) {
         config[i] = NOT_DECIDED;
     }
-    searchAux(config, graph, indexOfFirstUndecided, targetSizeOfSetX);
+    searchAux(config, indexOfFirstUndecided, targetSizeOfSetX);
 }
 
 // recursive function for producing pregenerated configurations into task pool
@@ -195,6 +196,7 @@ void produceMasterTaskPool() {
 }
 
 void produceSlaveTaskPool(short* initConfig) {
+    // find index of first undecide vertex in config
     int indexOfFirstUndecided = 0;
     for (int i = 0; i < configLength; i++) {
         if (initConfig[i] == NOT_DECIDED) {
@@ -202,30 +204,72 @@ void produceSlaveTaskPool(short* initConfig) {
             break;
         }
     }
-    taskPool = {};  // clean the task pool
+
     produceTaskPoolAux(initConfig, indexOfFirstUndecided, maxPregeneratedLevelFromSlave);
 }
 
 // consume configurations
 void consumeTaskPool(Graph& graph) {
-    int indexOfFirstUndecided = min(maxPregeneratedLevelFromSlave, graph.vertexesCount);
+    int indexOfFirstUndecided = min(maxPregeneratedLevelFromSlave, configLength);
 
     // #pragma omp parallel for schedule(dynamic)
     for (auto& task : taskPool) {
-        searchAux(task, graph, indexOfFirstUndecided, smallerSetSize);
+        searchAux(task, indexOfFirstUndecided, smallerSetSize);
     }
 
-    // for (auto& task : taskPool) {
-    // delete[] task;
+    // for (auto& task : taskPool) { //FIX double free
+    //     delete[] task;
     // }
+}
+
+// send task to slave
+void sendTaskToSlave(int destination) {
+    MPI_Send(taskPool.back(), configLength, MPI_SHORT, destination, TAG_WORK, MPI_COMM_WORLD);
+    delete[] taskPool.back();
+    taskPool.pop_back();
 }
 
 /** distribute taskpool between processes */
 void distributeMasterTaskPool() {
     for (int destination = 0; destination < numberOfProcesses; destination++) {
-        MPI_Send(taskPool.back(), configLength, MPI_SHORT, destination, TAG_WORK, MPI_COMM_WORLD);
-        taskPool.pop_back();
+        sendTaskToSlave(destination);
     }
+}
+
+void createResultDataType() {
+    const int numberOfItems = 2;
+    int blockLengths[2] = {1, configLength};
+    MPI_Datatype dataTypes[2] = {MPI_LONG, MPI_SHORT};
+    MPI_Aint offsets[2];
+    offsets[0] = offsetof(Result, minimalSplitWeight);
+    offsets[1] = offsetof(Result, minimalSplitConfig);
+    MPI_Type_create_struct(numberOfItems, blockLengths, offsets, dataTypes, &MPI_Result);
+    MPI_Type_commit(&MPI_Result);
+}
+
+// collect results from slaves
+void collectResults() {
+    MPI_Status status;
+    int receivedResults = 0;
+    // Result result = Result();
+    long* result = new long[configLength + 1];  // config lenth + spot for minimal weight
+    while (receivedResults < numberOfProcesses - 1) {
+        // MPI_Recv(&result, 1, MPI_Result, MPI_ANY_SOURCE, TAG_RESULT, MPI_COMM_WORLD, &status);
+
+        // receive result, which is send in array [...config, weight]
+        MPI_Recv(result, configLength + 1, MPI_LONG, MPI_ANY_SOURCE, TAG_RESULT, MPI_COMM_WORLD,
+                 &status);
+
+        // save if best
+        if (result[configLength] < minimalSplitWeight) {
+            minimalSplitWeight = result[configLength];
+            for (int i = 0; i < configLength; i++) {
+                minimalSplitConfig[i] = (short)result[i];
+            }
+        }
+        receivedResults++;
+    }
+    delete[] result;
 }
 
 void masterMainLoop() {
@@ -237,45 +281,44 @@ void masterMainLoop() {
 
         // if there left some task, assign it to finished process
         if (taskPool.size() > 0) {
-            MPI_Send(taskPool.back(), configLength, MPI_SHORT, status.MPI_SOURCE, TAG_WORK,
-                     MPI_COMM_WORLD);
-            taskPool.pop_back();
-        }
-        // no task left -> terminate slave
-        else {
+            sendTaskToSlave(status.MPI_SOURCE);
+        } else {
+            // no task left -> terminate slave
             MPI_Send(nullptr, 0, MPI_SHORT, status.MPI_SOURCE, TAG_TERMINATE, MPI_COMM_WORLD);
             workingSlaves--;
         }
     }
 
-    int receivedResults = 0;
-    Result* result = new Result();
-    while (receivedResults < numberOfProcesses - 1) {
-        MPI_Recv((void*)result, result->size(), MPI_BYTE, MPI_ANY_SOURCE, TAG_RESULT,
-                 MPI_COMM_WORLD, &status);
-        printf("master got %d\n", result->minimalSplitWeight);
-        if (result->minimalSplitWeight < minimalSplitWeight) {
-            minimalSplitWeight = result->minimalSplitWeight;
-            // copy(result->minimalSplitConfig, result->minimalSplitConfig + configLength,
-            //      minimalSplitConfig);
-            for (int i = 0; i < configLength; i++) {
-                // minimalSplitConfig[i] = result->minimalSplitConfig[i];
-                cout << result->minimalSplitConfig[i] << endl;
-            }
-        }
-        receivedResults++;
-    }
-    // delete result;
+    collectResults();
 }
 
-void master(Graph& graph) {
+// master process function
+void master() {
     produceMasterTaskPool();
     distributeMasterTaskPool();
     masterMainLoop();
 }
 
-void slave(Graph& graph) {
-    // consumeTaskPool(graph, smallerSetSize);
+// send local slave result to the master process
+void sendSlaveResultToMaster() {
+    // Result result = Result();
+    // result.minimalSplitWeight = minimalSplitWeight;
+    // for (int i = 0; i < configLength; i++) {
+    //     result.minimalSplitConfig[i] = minimalSplitConfig[i];
+    // }
+    // MPI_Send(&result, 1, MPI_Result, status.MPI_SOURCE, TAG_RESULT, MPI_COMM_WORLD);
+
+    long* result = new long[configLength + 1];  // config lenth + spot for minimal weight
+    for (int i = 0; i < configLength; i++) {
+        result[i] = (long)minimalSplitConfig[i];
+    }
+    result[configLength] = minimalSplitWeight;
+    MPI_Send(result, configLength + 1, MPI_LONG, MASTER, TAG_RESULT, MPI_COMM_WORLD);
+    delete[] result;
+}
+
+// slave process function
+void slave() {
     MPI_Status status;
     short* config = new short[configLength];
 
@@ -284,14 +327,11 @@ void slave(Graph& graph) {
 
         // terminate
         if (status.MPI_TAG == TAG_TERMINATE) {
-            Result* result = new Result(minimalSplitConfig, minimalSplitWeight);
-            MPI_Send((void*)result, result->size(), MPI_BYTE, status.MPI_SOURCE, TAG_RESULT,
-                     MPI_COMM_WORLD);
-            return;
+            delete[] config;
+            return sendSlaveResultToMaster();
         }
         // work
         else if (status.MPI_TAG == TAG_WORK) {
-            // printf("process %d work\n", processId);
             produceSlaveTaskPool(config);
             consumeTaskPool(graph);
             MPI_Send(nullptr, 0, MPI_SHORT, status.MPI_SOURCE, TAG_DONE, MPI_COMM_WORLD);
@@ -301,27 +341,76 @@ void slave(Graph& graph) {
     }
 }
 
-// search in best split
-void search(Graph& graph) {
-    // init minimal split in all processes
+// init some variables before search
+void initSearch() {
     configLength = graph.vertexesCount;
     minimalSplitWeight = LONG_MAX;
     minimalSplitConfig = new short[configLength];
+    taskPool = {};
+    // createResultDataType();
+}
 
-    if (processId == 0) {
-        master(graph);
+// search in best split
+void search() {
+    initSearch();
+
+    if (isMaster()) {
+        master();
     } else {
-        slave(graph);
+        slave();
     }
 }
 
-// reset for new test case
-void reset() { taskPool = {}; }
+// test test input
+void testInput(TestData& testData) {
+    graph = Graph();
+    graph.loadFromFile(testData.filePath);
+    smallerSetSize = testData.sizeOfX;
+    search();
+
+    if (isMaster()) {
+        cout << testData.filePath << endl;
+        cout << "Minimal weight: " << minimalSplitWeight << endl;
+        printConfig(minimalSplitConfig);
+        cout << "________________________________" << endl;
+
+        assert(minimalSplitWeight == testData.weight);
+    }
+
+    delete[] minimalSplitConfig;
+}
+
+// test all inputs
+void test() {
+    vector<TestData> testData = {
+        TestData("graf_mro/graf_10_5.txt", 5, 974),
+        TestData("graf_mro/graf_10_6b.txt", 5, 1300),
+        TestData("graf_mro/graf_20_7.txt", 7, 2110),
+        TestData("graf_mro/graf_20_7.txt", 10, 2378),
+        TestData("graf_mro/graf_20_12.txt", 10, 5060),
+        TestData("graf_mro/graf_30_10.txt", 10, 4636),
+        // TestData("graf_mro/graf_30_10.txt", 15, 5333),
+        // TestData("graf_mro/graf_30_20.txt", 15, 13159),
+        // TestData("graf_mro/graf_40_8.txt", 15, 4256),
+    };
+
+    // test all unputs
+    for (TestData& td : testData) {
+        testInput(td);
+    }
+}
 
 // main - tests
 int main(int argc, char** argv) {
     // initialize the open MPI environment
-    MPI_Init(&argc, &argv);
+    // MPI_Init(&argc, &argv);
+
+    // Initialize the open MPI environment with thread enabled
+    int provided, required = MPI_THREAD_MULTIPLE;
+    MPI_Init_thread(&argc, &argv, required, &provided);
+    if (provided < required) {
+        throw runtime_error("MPI library does not provide required threading support");
+    }
 
     // get the number of processes
     MPI_Comm_size(MPI_COMM_WORLD, &numberOfProcesses);
@@ -329,36 +418,8 @@ int main(int argc, char** argv) {
     // get the process id
     MPI_Comm_rank(MPI_COMM_WORLD, &processId);
 
-    // printf("world size: %d, world rank %d\n\n", numberOfProcesses, processId);
-
-    vector<TestData> testData = {
-        TestData("graf_mro/graf_10_5.txt", 5, 974),
-        // TestData("graf_mro/graf_10_6b.txt", 5, 1300),
-        // TestData("graf_mro/graf_20_7.txt", 7, 2110),
-        // TestData("graf_mro/graf_20_7.txt", 10, 2378),
-        // TestData("graf_mro/graf_20_12.txt", 10, 5060),
-        // TestData("graf_mro/graf_30_10.txt", 10, 4636),
-        // TestData("graf_mro/graf_30_10.txt", 15, 5333),
-        // TestData("graf_mro/graf_30_20.txt", 15, 13159),
-        // TestData("graf_mro/graf_40_8.txt", 15, 4256),
-    };
-
-    for (TestData& td : testData) {
-        reset();
-        Graph graph = Graph();
-        graph.loadFromFile(td.filePath);
-        smallerSetSize = td.sizeOfX;
-        search(graph);
-
-        // cout << td.filePath << endl;
-        // cout << "Minimal weight: " << minimalSplitWeight << endl;
-        // printConfig(minimalSplitConfig, graph.vertexesCount);
-        // cout << "________________________________" << endl;
-
-        // assert(minimalSplitWeight == td.weight);
-
-        // delete[] minimalSplitConfig;
-    }
+    // test inputs
+    test();
 
     // finalize the mpi environment
     MPI_Finalize();
