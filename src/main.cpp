@@ -25,8 +25,8 @@ int numberOfProcesses;
 int processId;
 long minimalSplitWeight = LONG_MAX;
 short* minimalSplitConfig = nullptr;
-int maxPregeneratedLevelFromMaster = 3;  // number of filled cells of config in master task pool
-int maxPregeneratedLevelFromSlave = 5;   // number of filled cells of config in slave task pool
+int maxPregeneratedLevelFromMaster = 6;  // number of filled cells of config in master task pool
+int maxPregeneratedLevelFromSlave = 9;   // number of filled cells of config in slave task pool
 int smallerSetSize;                      // size of smaler set X
 vector<short*> taskPool = {};
 Graph graph;
@@ -212,14 +212,15 @@ void produceSlaveTaskPool(short* initConfig) {
 void consumeTaskPool(Graph& graph) {
     int indexOfFirstUndecided = min(maxPregeneratedLevelFromSlave, configLength);
 
-    // #pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(dynamic)
     for (auto& task : taskPool) {
         searchAux(task, indexOfFirstUndecided, smallerSetSize);
     }
-
-    // for (auto& task : taskPool) { //FIX double free
-    //     delete[] task;
-    // }
+#pragma omp taskwait
+    while (taskPool.size()) {
+        // delete[] taskPool.back(); //TODO FIX
+        taskPool.pop_back();
+    }
 }
 
 // send task to slave
@@ -389,9 +390,9 @@ void test() {
         TestData("graf_mro/graf_20_7.txt", 10, 2378),
         TestData("graf_mro/graf_20_12.txt", 10, 5060),
         TestData("graf_mro/graf_30_10.txt", 10, 4636),
-        // TestData("graf_mro/graf_30_10.txt", 15, 5333),
-        // TestData("graf_mro/graf_30_20.txt", 15, 13159),
-        // TestData("graf_mro/graf_40_8.txt", 15, 4256),
+        TestData("graf_mro/graf_30_10.txt", 15, 5333),
+        TestData("graf_mro/graf_30_20.txt", 15, 13159),
+        TestData("graf_mro/graf_40_8.txt", 15, 4256),
     };
 
     // test all unputs
@@ -402,9 +403,6 @@ void test() {
 
 // main - tests
 int main(int argc, char** argv) {
-    // initialize the open MPI environment
-    // MPI_Init(&argc, &argv);
-
     // Initialize the open MPI environment with thread enabled
     int provided, required = MPI_THREAD_MULTIPLE;
     MPI_Init_thread(&argc, &argv, required, &provided);

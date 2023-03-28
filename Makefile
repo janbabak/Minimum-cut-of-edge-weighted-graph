@@ -1,7 +1,7 @@
 TARGET = pdp
 
 MPIC = mpic++
-MPIC_FLAGS = -Wall -pedantic -std=c++20 -fopenmp -g
+MPIC_FLAGS = -Wall -pedantic -std=c++20 -fopenmp -O3
 
 MKDIR = mkdir -p
 BUILD_DIR = build
@@ -21,11 +21,11 @@ runMemCheck: $(TARGET)
 	valgrind ./$(TARGET)
 
 $(TARGET): $(BUILD_DIR)/main.o $(BUILD_DIR)/Graph.o $(BUILD_DIR)/TestData.o $(BUILD_DIR)/Edge.o
-	$(MPIC) $(MPIC_FLAGS) $^ -o $@ -g
+	$(MPIC) $(MPIC_FLAGS) $^ -o $@
 
 $(BUILD_DIR)/%.o: src/%.cpp
 	$(MKDIR) $(BUILD_DIR)
-	$(MPIC) $(MPIC_FLAGS) $< -c -o $@ -g
+	$(MPIC) $(MPIC_FLAGS) $< -c -o $@
 
 .PHONY: clean
 clean:
