@@ -14,7 +14,7 @@ compile: $(TARGET)
 
 .PHONY: run
 run: $(TARGET)
-	./$(TARGET)
+	mpirun -np 4 --allow-run-as-root ./$(TARGET)
 
 .PHONY: runMemCheck
 runMemCheck: $(TARGET)

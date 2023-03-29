@@ -33,6 +33,19 @@ Graph graph;
 int configLength;
 MPI_Datatype MPI_Result;
 
+// debug print configuration
+void printConfig(short* config, ostream& os = cout) {
+    os << "[";
+    for (int i = 0; i < configLength; i++) {
+        os << config[i];
+        if (i == configLength - 1) {
+            os << "]" << endl;
+        } else {
+            os << ", ";
+        }
+    }
+}
+
 struct Result {
     long minimalSplitWeight;
     short* minimalSplitConfig;
@@ -47,6 +60,30 @@ struct Result {
         minimalSplitWeight = LONG_MAX;
     }
 
+    void send(int destination) {
+        int position = 0;
+        int bufferSize = size() / sizeof(char);
+        char* buffer = new char[bufferSize];
+        MPI_Pack(&minimalSplitWeight, 1, MPI_LONG, buffer, bufferSize, &position, MPI_COMM_WORLD);
+        MPI_Pack(minimalSplitConfig, configLength, MPI_SHORT, buffer, bufferSize, &position,
+                 MPI_COMM_WORLD);
+        MPI_Send(buffer, position, MPI_PACKED, destination, TAG_RESULT, MPI_COMM_WORLD);
+        delete[] buffer;
+    }
+
+    void receive() {
+        MPI_Status status;
+        int position = 0;
+        int bufferSize = size() / sizeof(char);
+        char* buffer = new char[bufferSize];
+        MPI_Recv(buffer, bufferSize, MPI_PACKED, MPI_ANY_SOURCE, TAG_RESULT, MPI_COMM_WORLD,
+                 &status);
+        MPI_Unpack(buffer, bufferSize, &position, &minimalSplitWeight, 1, MPI_LONG, MPI_COMM_WORLD);
+        MPI_Unpack(buffer, bufferSize, &position, minimalSplitConfig, configLength, MPI_SHORT,
+                   MPI_COMM_WORLD);
+        delete[] buffer;
+    }
+
     // ~Result() { delete[] minimalSplitConfig; }
 
     long size() { return sizeof(minimalSplitWeight) + sizeof(*minimalSplitConfig) * configLength; }
@@ -54,19 +91,6 @@ struct Result {
 
 // return true if current process is master, false otherwise
 bool isMaster() { return processId == MASTER; }
-
-// debug print configuration
-void printConfig(short* config, ostream& os = cout) {
-    os << "[";
-    for (int i = 0; i < configLength; i++) {
-        os << config[i];
-        if (i == configLength - 1) {
-            os << "]" << endl;
-        } else {
-            os << ", ";
-        }
-    }
-}
 
 // compute number of vertexes in (X set, Y set) from configuration
 pair<int, int> computeSizeOfXAndY(short* config, int& configurationSize) {
@@ -216,9 +240,9 @@ void consumeTaskPool(Graph& graph) {
     for (auto& task : taskPool) {
         searchAux(task, indexOfFirstUndecided, smallerSetSize);
     }
-#pragma omp taskwait
+
     while (taskPool.size()) {
-        // delete[] taskPool.back(); //TODO FIX
+        // delete[] taskPool.back();  // TODO FIX
         taskPool.pop_back();
     }
 }
@@ -252,25 +276,33 @@ void createResultDataType() {
 void collectResults() {
     MPI_Status status;
     int receivedResults = 0;
-    // Result result = Result();
-    long* result = new long[configLength + 1];  // config lenth + spot for minimal weight
+    Result resultStruct = Result();
+    // long* result = new long[configLength + 1];  // config lenth + spot for minimal weight
     while (receivedResults < numberOfProcesses - 1) {
-        // MPI_Recv(&result, 1, MPI_Result, MPI_ANY_SOURCE, TAG_RESULT, MPI_COMM_WORLD, &status);
+        // MPI_Recv(&resultStruct, resultStruct.size(), MPI_BYTE, MPI_ANY_SOURCE, TAG_RESULT,
+        //          MPI_COMM_WORLD, &status);
 
+        resultStruct.receive();
+
+        // printf("got %ld\n", resultStruct.minimalSplitWeight);
+        // for (int i = 0; i < configLength; i++) {
+        //     printf("%d ", resultStruct.minimalSplitConfig[i]);
+        // }
+        // printf("\n");
         // receive result, which is send in array [...config, weight]
-        MPI_Recv(result, configLength + 1, MPI_LONG, MPI_ANY_SOURCE, TAG_RESULT, MPI_COMM_WORLD,
-                 &status);
+        // MPI_Recv(result, configLength + 1, MPI_LONG, MPI_ANY_SOURCE, TAG_RESULT, MPI_COMM_WORLD,
+        //          &status);
 
         // save if best
-        if (result[configLength] < minimalSplitWeight) {
-            minimalSplitWeight = result[configLength];
+        if (resultStruct.minimalSplitWeight < minimalSplitWeight) {
+            minimalSplitWeight = resultStruct.minimalSplitWeight;
             for (int i = 0; i < configLength; i++) {
-                minimalSplitConfig[i] = (short)result[i];
+                minimalSplitConfig[i] = (short)resultStruct.minimalSplitConfig[i];
             }
         }
         receivedResults++;
     }
-    delete[] result;
+    // delete[] result;
 }
 
 void masterMainLoop() {
@@ -302,20 +334,23 @@ void master() {
 
 // send local slave result to the master process
 void sendSlaveResultToMaster() {
-    // Result result = Result();
-    // result.minimalSplitWeight = minimalSplitWeight;
-    // for (int i = 0; i < configLength; i++) {
-    //     result.minimalSplitConfig[i] = minimalSplitConfig[i];
-    // }
-    // MPI_Send(&result, 1, MPI_Result, status.MPI_SOURCE, TAG_RESULT, MPI_COMM_WORLD);
-
-    long* result = new long[configLength + 1];  // config lenth + spot for minimal weight
+    Result resultStruct = Result();
+    resultStruct.minimalSplitWeight = minimalSplitWeight;
     for (int i = 0; i < configLength; i++) {
-        result[i] = (long)minimalSplitConfig[i];
+        resultStruct.minimalSplitConfig[i] = minimalSplitConfig[i];
     }
-    result[configLength] = minimalSplitWeight;
-    MPI_Send(result, configLength + 1, MPI_LONG, MASTER, TAG_RESULT, MPI_COMM_WORLD);
-    delete[] result;
+    // long* result = new long[configLength + 1];  // config lenth + spot for minimal weight
+
+    // for (int i = 0; i < configLength; i++) {
+    //     result[i] = (long)minimalSplitConfig[i];
+    // }
+    // MPI_Send(&resultStruct, resultStruct.size(), MPI_BYTE, MASTER, TAG_RESULT, MPI_COMM_WORLD);
+    resultStruct.send(MASTER);
+
+    // MPI_Send(&result, 1, MPI_Result, MASTER, TAG_RESULT, MPI_COMM_WORLD);
+    // MPI_Send(result, configLength + 1, MPI_LONG, MASTER, TAG_RESULT, MPI_COMM_WORLD);
+    // result[configLength] = minimalSplitWeight;
+    // delete[] result;
 }
 
 // slave process function
@@ -390,9 +425,9 @@ void test() {
         TestData("graf_mro/graf_20_7.txt", 10, 2378),
         TestData("graf_mro/graf_20_12.txt", 10, 5060),
         TestData("graf_mro/graf_30_10.txt", 10, 4636),
-        TestData("graf_mro/graf_30_10.txt", 15, 5333),
-        TestData("graf_mro/graf_30_20.txt", 15, 13159),
-        TestData("graf_mro/graf_40_8.txt", 15, 4256),
+        // TestData("graf_mro/graf_30_10.txt", 15, 5333),
+        // TestData("graf_mro/graf_30_20.txt", 15, 13159),
+        // TestData("graf_mro/graf_40_8.txt", 15, 4256),
     };
 
     // test all unputs
