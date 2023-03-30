@@ -37,7 +37,6 @@ $(BUILD_DIR)Edge.o: src/Edge.cpp
 $(BUILD_DIR)Graph.o: src/Graph.cpp src/Edge.cpp
 $(BUILD_DIR)TestData.o: src/TestData.cpp
 $(BUILD_DIR)constants.o: src/constants.cpp
-$(BUILD_DIR)main.o: src/main.cpp src/ConfigWeight.cpp src/constants.cpp src/Graph.cpp \
- src/Edge.cpp src/TestData.cpp
+$(BUILD_DIR)main.o: src/main.cpp src/ConfigWeight.cpp src/constants.cpp src/Graph.cpp src/Edge.cpp src/TestData.cpp
 
 #inspired by PA2 stream https://youtu.be/qmgZF5ijax8
