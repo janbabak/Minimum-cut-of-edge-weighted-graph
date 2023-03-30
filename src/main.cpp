@@ -196,8 +196,8 @@ void consumeTaskPool(Graph& graph) {
 
 // send task to slave
 void sendTaskToSlave(int destination) {
-    ConfigWeight message =
-        ConfigWeight(configLength, minimalSplitWeight, minimalSplitConfig, taskPool.back());
+    ConfigWeightTask message =
+        ConfigWeightTask(configLength, minimalSplitWeight, minimalSplitConfig, taskPool.back());
     taskPool.pop_back();
     message.send(destination, TAG_WORK);
 }
@@ -210,12 +210,12 @@ void distributeMasterTaskPool() {
 }
 
 // save configuration if is the bestf found yet
-void saveConfigIfBest(ConfigWeight& result) {
+void saveConfigIfBest(ConfigWeight& resultMessage) {
     // save if best
-    if (result.getWeight() < minimalSplitWeight) {
-        minimalSplitWeight = result.getWeight();
+    if (resultMessage.getWeight() < minimalSplitWeight) {
+        minimalSplitWeight = resultMessage.getWeight();
         for (int i = 0; i < configLength; i++) {
-            minimalSplitConfig[i] = (short)result.getConfig()[i];
+            minimalSplitConfig[i] = (short)resultMessage.getConfig()[i];
         }
     }
 }
@@ -223,10 +223,10 @@ void saveConfigIfBest(ConfigWeight& result) {
 // collect results from slaves
 void collectResults() {
     int receivedResults = 0;
-    ConfigWeight result = ConfigWeight(configLength);
+    ConfigWeight resultMessage = ConfigWeight(configLength);
     while (receivedResults < numberOfProcesses - 1) {
-        result.receive();
-        saveConfigIfBest(result);
+        resultMessage.receive();
+        saveConfigIfBest(resultMessage);
         receivedResults++;
     }
 }
@@ -264,25 +264,25 @@ void master() {
 // slave process function
 void slave() {
     MPI_Status status;
-    ConfigWeight message = ConfigWeight(configLength);
+    ConfigWeightTask taskMessage = ConfigWeightTask(configLength);
+    ConfigWeight resultMessage = ConfigWeight(configLength);
 
     while (true) {
-        status = message.receive(MASTER, MPI_ANY_TAG);
+        status = taskMessage.receive(MASTER, MPI_ANY_TAG);
 
         // send result to master and terminate
         if (status.MPI_TAG == TAG_TERMINATE) {
-            ConfigWeight result =
-                ConfigWeight(configLength, minimalSplitWeight, minimalSplitConfig);
-            result.send(MASTER);
+            resultMessage.setWeightAndConfig(minimalSplitWeight, minimalSplitConfig);
+            resultMessage.send(MASTER);
             return;
         }
         // work - compute
         else if (status.MPI_TAG == TAG_WORK) {
-            produceSlaveTaskPool(message.getTask());
-            saveConfigIfBest(message);
+            produceSlaveTaskPool(taskMessage.getTask());
+            saveConfigIfBest(taskMessage);
             consumeTaskPool(graph);
-            message.setWeightAndConfig(minimalSplitWeight, minimalSplitConfig);
-            message.send(MASTER, TAG_DONE);
+            resultMessage.setWeightAndConfig(minimalSplitWeight, minimalSplitConfig);
+            resultMessage.send(MASTER, TAG_DONE);
         } else {
             printf("ERROR, BAD MESSAGE");
         }
@@ -330,13 +330,15 @@ void testInput(TestData& testData) {
 // test all inputs
 void test() {
     vector<TestData> testData = {
-        TestData("graf_mro/graf_10_5.txt", 5, 974), TestData("graf_mro/graf_10_6b.txt", 5, 1300),
-        TestData("graf_mro/graf_20_7.txt", 7, 2110), TestData("graf_mro/graf_20_7.txt", 10, 2378),
-        // TestData("graf_mro/graf_20_12.txt", 10, 5060),
-        // TestData("graf_mro/graf_30_10.txt", 10, 4636),
-        // TestData("graf_mro/graf_30_10.txt", 15, 5333),
-        // TestData("graf_mro/graf_30_20.txt", 15, 13159),
-        // TestData("graf_mro/graf_40_8.txt", 15, 4256),
+        TestData("graf_mro/graf_10_5.txt", 5, 974),
+        TestData("graf_mro/graf_10_6b.txt", 5, 1300),
+        TestData("graf_mro/graf_20_7.txt", 7, 2110),
+        TestData("graf_mro/graf_20_7.txt", 10, 2378),
+        TestData("graf_mro/graf_20_12.txt", 10, 5060),
+        TestData("graf_mro/graf_30_10.txt", 10, 4636),
+        TestData("graf_mro/graf_30_10.txt", 15, 5333),
+        TestData("graf_mro/graf_30_20.txt", 15, 13159),
+        TestData("graf_mro/graf_40_8.txt", 15, 4256),
     };
 
     // test all unputs
