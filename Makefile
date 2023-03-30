@@ -37,10 +37,10 @@ $(BUILD_DIR)ConfigWeight.o: src/ConfigWeight.cpp src/ConfigWeight.h src/constant
 $(BUILD_DIR)ConfigWeightTask.o: src/ConfigWeightTask.cpp src/ConfigWeightTask.h \
  src/ConfigWeight.h src/constants.h
 $(BUILD_DIR)Edge.o: src/Edge.cpp
-$(BUILD_DIR)Graph.o: src/Graph.cpp src/Edge.cpp
+$(BUILD_DIR)Graph.o: src/Graph.cpp src/Graph.h src/Edge.cpp
 $(BUILD_DIR)TestData.o: src/TestData.cpp
-$(BUILD_DIR)constants.o: src/constants.h
 $(BUILD_DIR)main.o: src/main.cpp src/ConfigWeight.h src/constants.h \
- src/ConfigWeightTask.h src/Graph.cpp src/Edge.cpp src/TestData.cpp
+ src/ConfigWeightTask.h src/Graph.cpp src/Graph.h src/Edge.cpp \
+ src/TestData.cpp
 
 #inspired by PA2 stream https://youtu.be/qmgZF5ijax8

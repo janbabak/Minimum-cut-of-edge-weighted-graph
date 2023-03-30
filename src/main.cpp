@@ -5,9 +5,9 @@
 #include <iostream>
 #include <vector>
 
+#include "Graph.h"
 #include "ConfigWeight.h"
 #include "ConfigWeightTask.h"
-#include "Graph.cpp"
 #include "TestData.cpp"
 
 using namespace std;
@@ -18,7 +18,7 @@ long minimalSplitWeight = LONG_MAX;      // best found weight
 short* minimalSplitConfig = nullptr;     // best found configuration
 int maxPregeneratedLevelFromMaster = 6;  // number of filled cells of config in master task pool
 int maxPregeneratedLevelFromSlave = 9;   // number of filled cells of config in slave task pool
-int smallerSetSize;                      // size of smaler set X
+int smallerSetSize;                      // size of smaller set X
 int configLength;
 vector<short*> taskPool = {};
 Graph graph;
@@ -210,7 +210,7 @@ void distributeMasterTaskPool() {
     }
 }
 
-// save configuration if is the bestf found yet
+// save configuration if is the best found yet
 void saveConfigIfBest(ConfigWeight& resultMessage) {
     // save if best
     if (resultMessage.getWeight() < minimalSplitWeight) {
@@ -354,7 +354,7 @@ int main(int argc, char** argv) {
     int provided, required = MPI_THREAD_MULTIPLE;
     MPI_Init_thread(&argc, &argv, required, &provided);
     if (provided < required) {
-        throw runtime_error("MPI library does not provide required threading support");
+        throw runtime_error("MPI library does not provide required threading support.");
     }
 
     // get the number of processes

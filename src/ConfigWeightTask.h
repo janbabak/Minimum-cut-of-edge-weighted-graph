@@ -1,3 +1,5 @@
+#pragma once
+
 #include "ConfigWeight.h"
 
 // struct for sending configuration and weight and task configuration

@@ -26,7 +26,6 @@ void ConfigWeight::send(int destination, int tag) {
 // receive self from destination process id
 MPI_Status ConfigWeight::receive(int destination, int tag) {
     MPI_Status status;
-    // printf("status.")
     int position = 0;
     int bufferSize = size() / sizeof(char);
     char* buffer = new char[bufferSize];
