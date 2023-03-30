@@ -1,3 +1,5 @@
+#pragma once
+
 const short IN_X = 1;
 const short IN_Y = 0;
 const short NOT_DECIDED = -1;

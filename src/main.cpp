@@ -5,7 +5,8 @@
 #include <iostream>
 #include <vector>
 
-#include "ConfigWeight.cpp"
+#include "ConfigWeight.h"
+#include "ConfigWeightTask.h"
 #include "Graph.cpp"
 #include "TestData.cpp"
 
