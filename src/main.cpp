@@ -1,16 +1,20 @@
 #include <mpi.h>
+#include <omp.h>
 
 #include <cassert>
+#include <chrono>
 #include <climits>
+#include <cmath>
 #include <iostream>
 #include <vector>
 
-#include "Graph.h"
 #include "ConfigWeight.h"
 #include "ConfigWeightTask.h"
+#include "Graph.h"
 #include "TestData.cpp"
 
 using namespace std;
+using namespace std::chrono;
 
 int numberOfProcesses;
 int processId;
@@ -320,7 +324,6 @@ void testInput(TestData& testData) {
         cout << testData.filePath << endl;
         cout << "Minimal weight: " << minimalSplitWeight << endl;
         printConfig(minimalSplitConfig);
-        cout << "________________________________" << endl;
 
         assert(minimalSplitWeight == testData.weight);
     }
@@ -328,28 +331,10 @@ void testInput(TestData& testData) {
     delete[] minimalSplitConfig;
 }
 
-// test all inputs
-void test() {
-    vector<TestData> testData = {
-        TestData("graf_mro/graf_10_5.txt", 5, 974),
-        TestData("graf_mro/graf_10_6b.txt", 5, 1300),
-        TestData("graf_mro/graf_20_7.txt", 7, 2110),
-        TestData("graf_mro/graf_20_7.txt", 10, 2378),
-        TestData("graf_mro/graf_20_12.txt", 10, 5060),
-        TestData("graf_mro/graf_30_10.txt", 10, 4636),
-        TestData("graf_mro/graf_30_10.txt", 15, 5333),
-        TestData("graf_mro/graf_30_20.txt", 15, 13159),
-        TestData("graf_mro/graf_40_8.txt", 15, 4256),
-    };
-
-    // test all inputs
-    for (TestData& td : testData) {
-        testInput(td);
-    }
-}
-
 // main - tests
 int main(int argc, char** argv) {
+    steady_clock::time_point start = steady_clock::now();  // timer start
+
     // Initialize the open MPI environment with thread enabled
     int provided, required = MPI_THREAD_MULTIPLE;
     MPI_Init_thread(&argc, &argv, required, &provided);
@@ -363,11 +348,37 @@ int main(int argc, char** argv) {
     // get the process id
     MPI_Comm_rank(MPI_COMM_WORLD, &processId);
 
-    // test inputs
-    test();
+    // arguments are: path to input graph, size of smaller set (X) number of threads, optionally
+    // solution for testing purposes
+    if (argc < 4) {
+        cerr << "Usage: " << argv[0]
+             << " <path_to_graph> <size_of_set_X> <number_of_threads> <solution>?" << endl;
+        return 1;
+    }
+
+    char* pathToGraph = argv[1];
+    int sizeOfSmallerSet = atoi(argv[2]);
+    int numberOfThreads = atoi(argv[3]);
+    int solution = -1;
+    if (argc == 5) {
+        solution = atoi(argv[4]);
+    }
+    TestData testData = TestData(pathToGraph, sizeOfSmallerSet, solution);
+
+    omp_set_dynamic(0);
+    omp_set_num_threads(numberOfThreads);
+
+    testInput(testData);
 
     // finalize the mpi environment
     MPI_Finalize();
+
+    if (isMaster()) {
+        steady_clock::time_point end = steady_clock::now();  // timer stop
+        auto time = duration<double>(end - start);
+        cout << "time: " << std::round(time.count() * 1000.0) / 1000.0 << "s" << endl;
+        cout << "________________________________" << endl;
+    }
 
     return 0;
 }

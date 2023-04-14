@@ -14,7 +14,7 @@ compile: $(TARGET)
 
 .PHONY: run
 run: $(TARGET)
-	mpirun -np 4 --allow-run-as-root ./$(TARGET)
+	mpirun -np 4 --allow-run-as-root ./$(TARGET) graf_mro/graf_10_5.txt 5 10 974
 
 .PHONY: runMemCheck
 runMemCheck: $(TARGET)
