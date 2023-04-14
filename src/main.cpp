@@ -1,10 +1,11 @@
 #include <omp.h>
 
 #include <cassert>
+#include <chrono>
 #include <climits>
+#include <cmath>
 #include <iostream>
 #include <vector>
-#include <chrono>
 
 #include "Graph.cpp"
 #include "TestData.cpp"
@@ -229,7 +230,7 @@ void search(Graph& graph, int smallerSetSize) {
 
 // main - tests
 int main(int argc, char** argv) {
-    steady_clock::time_point start = steady_clock::now(); //timer start
+    steady_clock::time_point start = steady_clock::now();  // timer start
 
     // arguments are: path to input graph, size of smaller set (X) number of threads, optionally
     // solution for testing purposes
@@ -248,7 +249,7 @@ int main(int argc, char** argv) {
     }
     TestData testData = TestData(pathToGraph, sizeOfSmallerSet, solution);
 
-    omp_set_dynamic(0); 
+    omp_set_dynamic(0);
     omp_set_num_threads(numberOfThreads);
 
     Graph graph = Graph();
@@ -264,10 +265,9 @@ int main(int argc, char** argv) {
     }
     delete[] minimalSplitConfig;
 
-    steady_clock::time_point end = steady_clock::now(); //timer stop
+    steady_clock::time_point end = steady_clock::now();  // timer stop
     auto time = duration<double>(end - start);
-    int minutes = (int)time.count() / 60;
-    cout << "time: " << minutes << "m" << time.count() - minutes << "s" << endl;
-
+    cout << "time: " << std::round(time.count() * 1000.0) / 1000.0 << "s" << endl;
+    
     return 0;
 }
