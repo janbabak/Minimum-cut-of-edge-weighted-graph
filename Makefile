@@ -14,18 +14,14 @@ compile: $(TARGET)
 
 .PHONY: run
 run: $(TARGET)
-	./$(TARGET)
-
-.PHONY: runMemCheck
-runMemCheck: $(TARGET)
-	valgrind ./$(TARGET)
+	./$(TARGET) graf_mro/graf_10_5.txt 5 10 974
 
 $(TARGET): $(BUILD_DIR)/main.o $(BUILD_DIR)/Graph.o $(BUILD_DIR)/TestData.o $(BUILD_DIR)/Edge.o
-	$(CXX) $(CXX_FLAGS) $^ -o $@ -g
+	$(CXX) $(CXX_FLAGS) $^ -o $@ 
 
 $(BUILD_DIR)/%.o: src/%.cpp
 	$(MKDIR) $(BUILD_DIR)
-	$(CXX) $(CXX_FLAGS) $< -c -o $@ -g
+	$(CXX) $(CXX_FLAGS) $< -c -o $@
 
 .PHONY: clean
 clean:
