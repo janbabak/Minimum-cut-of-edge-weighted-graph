@@ -4,11 +4,13 @@
 #include <climits>
 #include <iostream>
 #include <vector>
+#include <chrono>
 
 #include "Graph.cpp"
 #include "TestData.cpp"
 
 using namespace std;
+using namespace std::chrono;
 
 const short IN_X = 1;
 const short IN_Y = 0;
@@ -226,31 +228,46 @@ void search(Graph& graph, int smallerSetSize) {
 }
 
 // main - tests
-int main() {
-    vector<TestData> testData = {
-        TestData("graf_mro/graf_10_5.txt", 5, 974),
-        TestData("graf_mro/graf_10_6b.txt", 5, 1300),
-        TestData("graf_mro/graf_20_7.txt", 7, 2110),
-        TestData("graf_mro/graf_20_7.txt", 10, 2378),
-        TestData("graf_mro/graf_20_12.txt", 10, 5060),
-        TestData("graf_mro/graf_30_10.txt", 10, 4636),
-        TestData("graf_mro/graf_30_10.txt", 15, 5333),
-        TestData("graf_mro/graf_30_20.txt", 15, 13159),
-        //   TestData("graf_mro/graf_40_8.txt", 15, 4256),
-    };
+int main(int argc, char** argv) {
+    steady_clock::time_point start = steady_clock::now(); //timer start
 
-    for (TestData& td : testData) {
-        Graph graph = Graph();
-        minimalSplitWeight = LONG_MAX;
-        graph.loadFromFile(td.filePath);
-        search(graph, td.sizeOfX);
-        cout << td.filePath << endl;
-        cout << "Minimal weight: " << minimalSplitWeight << endl;
-        printConfig(minimalSplitConfig, graph.vertexesCount);
-        cout << "________________________________" << endl;
-        assert(minimalSplitWeight == td.weight);
-        delete[] minimalSplitConfig;
+    // arguments are: path to input graph, size of smaller set (X) number of threads, optionally
+    // solution for testing purposes
+    if (argc < 4) {
+        cerr << "Usage: " << argv[0]
+             << " <path_to_graph> <size_of_set_X> <number_of_threads> <solution>?" << endl;
+        return 1;
     }
+
+    char* pathToGraph = argv[1];
+    int sizeOfSmallerSet = atoi(argv[2]);
+    int numberOfThreads = atoi(argv[3]);
+    int solution = -1;
+    if (argc == 5) {
+        solution = atoi(argv[4]);
+    }
+    TestData testData = TestData(pathToGraph, sizeOfSmallerSet, solution);
+
+    omp_set_dynamic(0); 
+    omp_set_num_threads(numberOfThreads);
+
+    Graph graph = Graph();
+    minimalSplitWeight = LONG_MAX;
+    graph.loadFromFile(testData.filePath);
+    search(graph, testData.sizeOfX);
+    cout << testData.filePath << endl;
+    cout << "Minimal weight: " << minimalSplitWeight << endl;
+    printConfig(minimalSplitConfig, graph.vertexesCount);
+    cout << "________________________________" << endl;
+    if (testData.weight != -1) {
+        assert(minimalSplitWeight == testData.weight);
+    }
+    delete[] minimalSplitConfig;
+
+    steady_clock::time_point end = steady_clock::now(); //timer stop
+    auto time = duration<double>(end - start);
+    int minutes = (int)time.count() / 60;
+    cout << "time: " << minutes << "m" << time.count() - minutes << "s" << endl;
 
     return 0;
 }

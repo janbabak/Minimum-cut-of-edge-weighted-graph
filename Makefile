@@ -14,7 +14,7 @@ compile: $(TARGET)
 
 .PHONY: run
 run: $(TARGET)
-	./$(TARGET)
+	./$(TARGET) graf_mro/graf_10_5.txt 5 10 974
 
 $(TARGET): $(BUILD_DIR)/main.o $(BUILD_DIR)/Graph.o $(BUILD_DIR)/TestData.o $(BUILD_DIR)/Edge.o
 	$(CXX) $(CXX_FLAGS) $^ -o $@ 
