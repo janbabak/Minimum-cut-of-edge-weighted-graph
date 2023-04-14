@@ -168,7 +168,7 @@ void produceMasterTaskPool() {
 }
 
 void produceSlaveTaskPool(short* initConfig) {
-    // find index of first undecide vertex in config
+    // find index of first undecided vertex in config
     int indexOfFirstUndecided = 0;
     for (int i = 0; i < configLength; i++) {
         if (initConfig[i] == NOT_DECIDED) {
@@ -342,7 +342,7 @@ void test() {
         TestData("graf_mro/graf_40_8.txt", 15, 4256),
     };
 
-    // test all unputs
+    // test all inputs
     for (TestData& td : testData) {
         testInput(td);
     }
