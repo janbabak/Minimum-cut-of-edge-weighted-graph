@@ -17,6 +17,7 @@ Graph::Graph(const Graph &source)
     }
 }
 
+// destructor
 Graph::~Graph() { delete[] edges; }
 
 // operator ==

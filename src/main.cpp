@@ -27,7 +27,11 @@ int configLength;
 vector<short*> taskPool = {};
 Graph graph;
 
-// debug print configuration
+/**
+ * Print configuration for debug purposes.
+ * @param config vertexes configuration to print
+ * @param os output stream
+ */
 void printConfig(short* config, ostream& os = cout) {
     os << "[";
     for (int i = 0; i < configLength; i++) {
@@ -40,10 +44,17 @@ void printConfig(short* config, ostream& os = cout) {
     }
 }
 
-// return true if current process is master, false otherwise
+/**
+ * Check if current process is master.
+ * @return true if current process is master, false otherwise
+ */
 [[nodiscard]] inline bool isMaster() { return processId == MASTER; }
 
-// compute number of vertexes in (X set, Y set) from configuration
+/**
+ * Compute number of vertexes in both sets (X and Y).
+ * @param config vertexes configuration
+ * @return pair, where the first item is size of X and the second one the is size of Y
+ */
 [[nodiscard]] pair<int, int> computeSizeOfXAndY(short* config) {
     int countX = 0;
     int countY = 0;
@@ -61,7 +72,11 @@ void printConfig(short* config, ostream& os = cout) {
     return make_pair(countX, countY);
 }
 
-// compute sum of weights of edges, that has one vertex in X and second in Y
+/**
+ * Compute sum of weights of edges, that has one vertex in set X and second one in set Y.
+ * @param config vertexes configuration
+ * @return weight of split
+ */
 [[nodiscard]] long computeSplitWeight(short* config) {
     long weight = 0;
 
@@ -74,7 +89,13 @@ void printConfig(short* config, ostream& os = cout) {
     return weight;
 }
 
-// compute lower bound of undecided part of vertexes
+/**
+ * Compute lower bound of undecided part of vertexes.
+ * @param config vertexes configuration
+ * @param indexOfFirstUndecided index of first vertex from configuration which is not assigned to X or Y
+ * @param weightOfDecidedPart weight of the split computed only from decided vertexes
+ * @return lower bound of weight
+ */
 [[nodiscard]] long lowerBoundOfUndecidedPart(short* config, int indexOfFirstUndecided,
                                              long weightOfDecidedPart) {
     long lowerBound = 0;
@@ -91,7 +112,12 @@ void printConfig(short* config, ostream& os = cout) {
     return lowerBound;
 }
 
-// auxiliary recursive function, tries all configurations
+/**
+ * Auxiliary recursive function which search through the entire graph using DFS.
+ * @param config vertexes configuration
+ * @param indexOfFirstUndecided index of first vertex from configuration which is not assigned to X or Y
+ * @param targetSizeOfSetX size of set X (user parameter)
+ */
 void searchAux(short* config, int indexOfFirstUndecided, int& targetSizeOfSetX) {
     // configurations in this sub tree contains to much vertexes included in smaller set
     pair<int, int> sizeOfXAndY = computeSizeOfXAndY(config);
@@ -145,7 +171,12 @@ void searchAux(short* config, int indexOfFirstUndecided, int& targetSizeOfSetX) 
     searchAux(config, indexOfFirstUndecided, targetSizeOfSetX);
 }
 
-// recursive function for producing pregenerated configurations into task pool
+/**
+ * Recursive function for producing pregenerated configurations into task pool.
+ * @param config vertexes configuration from previous interation (recursive function call)
+ * @param indexOfFirstUndecided index of first vertex from configuration which is not assigned to X or Y
+ * @param maxPregeneratedLength maximum count of pregenerated vertexes
+ */
 void produceTaskPoolAux(short* config, int indexOfFirstUndecided, int maxPregeneratedLength) {
     if (indexOfFirstUndecided >= configLength || indexOfFirstUndecided >= maxPregeneratedLength) {
         taskPool.push_back(config);
@@ -164,13 +195,19 @@ void produceTaskPoolAux(short* config, int indexOfFirstUndecided, int maxPregene
     produceTaskPoolAux(secondConfig, indexOfFirstUndecided, maxPregeneratedLength);
 }
 
-// produce initial configurations
+/**
+ * Produce master task pool.
+ */
 void produceMasterTaskPool() {
     short* config = new short[configLength];
     fill_n(config, configLength, NOT_DECIDED);
     produceTaskPoolAux(config, 0, maxPregeneratedLevelFromMaster);
 }
 
+/**
+ * Produce slave task pool.
+ * @param initConfig initial vertex configuration (obtained from master)
+ */
 void produceSlaveTaskPool(short* initConfig) {
     // find index of first undecided vertex in config
     int indexOfFirstUndecided = 0;
@@ -184,8 +221,10 @@ void produceSlaveTaskPool(short* initConfig) {
     produceTaskPoolAux(initConfig, indexOfFirstUndecided, maxPregeneratedLevelFromSlave);
 }
 
-// consume configurations
-void consumeTaskPool(Graph& graph) {
+/**
+ * Consume task pool (by slave)
+ */
+void consumeTaskPool() {
     int indexOfFirstUndecided = min(maxPregeneratedLevelFromSlave, configLength);
 
 #pragma omp parallel for schedule(dynamic)
@@ -199,7 +238,10 @@ void consumeTaskPool(Graph& graph) {
     }
 }
 
-// send task to slave
+/**
+ * Send task to slave process.
+ * @param destination id of slave process
+ */
 void sendTaskToSlave(int destination) {
     ConfigWeightTask message =
         ConfigWeightTask(configLength, minimalSplitWeight, minimalSplitConfig, taskPool.back());
@@ -207,14 +249,19 @@ void sendTaskToSlave(int destination) {
     message.send(destination, TAG_WORK);
 }
 
-/** distribute taskpool between processes */
+/**
+ * Distribute master taskpool to slave processes.
+ */
 void distributeMasterTaskPool() {
     for (int destination = 0; destination < numberOfProcesses; destination++) {
         sendTaskToSlave(destination);
     }
 }
 
-// save configuration if is the best found yet
+/**
+ * Save configuration if it is the new best configuration.
+ * @param resultMessage message containing the result of computation of slave process.
+ */
 void saveConfigIfBest(ConfigWeight& resultMessage) {
     // save if best
     if (resultMessage.getWeight() < minimalSplitWeight) {
@@ -225,7 +272,9 @@ void saveConfigIfBest(ConfigWeight& resultMessage) {
     }
 }
 
-// collect results from slaves
+/**
+ * Collect results from slave processes.
+ */
 void collectResults() {
     int receivedResults = 0;
     ConfigWeight resultMessage = ConfigWeight(configLength);
@@ -236,7 +285,9 @@ void collectResults() {
     }
 }
 
-// distribute tasks and collect results
+/**
+ * Main loop of master process. Distribute tasks to slaves and collect results from them.
+ */
 void masterMainLoop() {
     int workingSlaves = numberOfProcesses - 1;  // minus 1, because of master process
     MPI_Status status;
@@ -259,14 +310,18 @@ void masterMainLoop() {
     collectResults();
 }
 
-// master process function
+/**
+ * Master process function.
+ */
 void master() {
     produceMasterTaskPool();
     distributeMasterTaskPool();
     masterMainLoop();
 }
 
-// slave process function
+/**
+ * Slave process function.
+ */
 void slave() {
     MPI_Status status;
     ConfigWeightTask taskMessage = ConfigWeightTask(configLength);
@@ -283,9 +338,9 @@ void slave() {
         }
         // work - compute
         else if (status.MPI_TAG == TAG_WORK) {
-            produceSlaveTaskPool(taskMessage.getTask());
             saveConfigIfBest(taskMessage);
-            consumeTaskPool(graph);
+            produceSlaveTaskPool(taskMessage.getTask());
+            consumeTaskPool();
             resultMessage.setWeightAndConfig(minimalSplitWeight, minimalSplitConfig);
             resultMessage.send(MASTER, TAG_DONE);
         } else {
@@ -294,7 +349,9 @@ void slave() {
     }
 }
 
-// init some variables before search
+/**
+ * Initialize some variables before searching for the best configuration.
+ */
 void initSearch() {
     configLength = graph.vertexesCount;
     minimalSplitWeight = LONG_MAX;
@@ -302,7 +359,9 @@ void initSearch() {
     taskPool = {};
 }
 
-// search in best split
+/**
+ * Search for in best configuration (split of vertexes to two sets X and Y).
+ */
 void search() {
     initSearch();
 
@@ -313,7 +372,10 @@ void search() {
     }
 }
 
-// test test input
+/**
+ * Test input.
+ * @param testData test data, which contains input and output parameters.
+ */
 void testInput(TestData& testData) {
     graph = Graph();
     graph.loadFromFile(testData.filePath);
@@ -331,7 +393,7 @@ void testInput(TestData& testData) {
     delete[] minimalSplitConfig;
 }
 
-// main - tests
+// main function
 int main(int argc, char** argv) {
     steady_clock::time_point start = steady_clock::now();  // timer start
 
@@ -370,15 +432,16 @@ int main(int argc, char** argv) {
 
     testInput(testData);
 
-    // finalize the mpi environment
-    MPI_Finalize();
-
+    // only master proces will display results
     if (isMaster()) {
         steady_clock::time_point end = steady_clock::now();  // timer stop
         auto time = duration<double>(end - start);
         cout << "time: " << std::round(time.count() * 1000.0) / 1000.0 << "s" << endl;
         cout << "________________________________" << endl;
     }
+
+    // finalize the mpi environment
+    MPI_Finalize();
 
     return 0;
 }
