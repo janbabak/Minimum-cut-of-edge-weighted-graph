@@ -17,15 +17,23 @@ const short IN_X = 1;
 const short IN_Y = 0;
 const short NOT_DECIDED = -1;
 
-long minimalSplitWeight = LONG_MAX;
-short* minimalSplitConfig = nullptr;
+long minimalSplitWeight = LONG_MAX;   // best found weight
+short *minimalSplitConfig = nullptr;  // best found configuration
+int smallerSetSize;                   // size of smaller set X
+int configLength;                     // number of vertexes
+vector<short *> taskPool = {};
+Graph graph;
 
-// debug print configuration
-void printConfig(short* config, int& configSize, ostream& os = cout) {
+/**
+ * Print configuration for debug purposes.
+ * @param config vertexes configuration to print
+ * @param os output stream
+ */
+void printConfig(short *config, ostream &os = cout) {
     os << "[";
-    for (int i = 0; i < configSize; i++) {
+    for (int i = 0; i < configLength; i++) {
         os << config[i];
-        if (i == configSize - 1) {
+        if (i == configLength - 1) {
             os << "]" << endl;
         } else {
             os << ", ";
@@ -33,12 +41,16 @@ void printConfig(short* config, int& configSize, ostream& os = cout) {
     }
 }
 
-// compute number of vertexes in (X set, Y set) from configuration
-pair<int, int> computeSizeOfXAndY(short* config, int& configurationSize) {
+/**
+ * Compute the number of vertexes in both sets (X and Y).
+ * @param config vertexes configuration
+ * @return pair, where the first item is size of X and the second one the is size of Y
+ */
+[[nodiscard]] pair<int, int> computeSizeOfXAndY(short *config) {
     int countX = 0;
     int countY = 0;
 
-    for (int i = 0; i < configurationSize; i++) {
+    for (int i = 0; i < configLength; i++) {
         if (config[i] == IN_X) {
             countX++;
         } else if (config[i] == IN_Y) {
@@ -51,8 +63,12 @@ pair<int, int> computeSizeOfXAndY(short* config, int& configurationSize) {
     return make_pair(countX, countY);
 }
 
-// compute sum of weights of edges, that has one vertex in X and second in Y
-long computeSplitWeight(short* config, Graph& graph) {
+/**
+ * Compute sum of weights of edges, that has one vertex in set X and second one in set Y.
+ * @param config vertexes configuration
+ * @return weight of split
+ */
+[[nodiscard]] long computeSplitWeight(short *config) {
     long weight = 0;
 
     for (int i = 0; i < graph.edgesSize; i++) {
@@ -64,16 +80,23 @@ long computeSplitWeight(short* config, Graph& graph) {
     return weight;
 }
 
-// compute lower bound of undecided part of vertexes
-long lowerBoundOfUndecidedPart(short* config, Graph& graph, int indexOfFirstUndecided,
-                               long weightOfDecidedPart) {
+/**
+ * Compute lower bound of undecided part of vertexes.
+ * @param config vertexes configuration
+ * @param indexOfFirstUndecided index of first vertex from configuration which is not assigned to X
+ * or Y
+ * @param weightOfDecidedPart weight of the split computed only from decided vertexes
+ * @return lower bound of weight
+ */
+[[nodiscard]] long lowerBoundOfUndecidedPart(short *config, int indexOfFirstUndecided,
+                                             long weightOfDecidedPart) {
     long lowerBound = 0;
 
-    for (int i = indexOfFirstUndecided; i < graph.vertexesCount; i++) {
+    for (int i = indexOfFirstUndecided; i < configLength; i++) {
         config[i] = IN_X;
-        long weightWhenInX = computeSplitWeight(config, graph);
+        long weightWhenInX = computeSplitWeight(config);
         config[i] = IN_Y;
-        long weightWhenInY = computeSplitWeight(config, graph);
+        long weightWhenInY = computeSplitWeight(config);
         lowerBound += (min(weightWhenInX, weightWhenInY) - weightOfDecidedPart);
         config[i] = NOT_DECIDED;
     }
@@ -81,17 +104,21 @@ long lowerBoundOfUndecidedPart(short* config, Graph& graph, int indexOfFirstUnde
     return lowerBound;
 }
 
-// auxiliary recursive function, tries all configurations
-void searchAuxSequential(short* config, Graph& graph, int indexOfFirstUndecided,
-                         int& targetSizeOfSetX) {
+/**
+ * Sequential auxiliary recursive function which search through the bottom layers of the graph using
+ * DFS.
+ * @param config vertexes configuration
+ * @param indexOfFirstUndecided index of first vertex from configuration which is not assigned to X
+ * or Y
+ */
+void searchAuxSequential(short *config, int indexOfFirstUndecided) {
     // configurations in this sub tree contains to much vertexes included in smaller set
-    pair<int, int> sizeOfXAndY = computeSizeOfXAndY(config, graph.vertexesCount);
-    if (sizeOfXAndY.first > targetSizeOfSetX ||
-        sizeOfXAndY.second > graph.vertexesCount - targetSizeOfSetX) {
+    pair<int, int> sizeOfXAndY = computeSizeOfXAndY(config);
+    if (sizeOfXAndY.first > smallerSetSize || sizeOfXAndY.second > configLength - smallerSetSize) {
         return;
     }
 
-    long weightOfDecidedPart = computeSplitWeight(config, graph);
+    long weightOfDecidedPart = computeSplitWeight(config);
 
     // all configurations in this sub tree are worse than best solution
     if (weightOfDecidedPart > minimalSplitWeight) {
@@ -99,26 +126,26 @@ void searchAuxSequential(short* config, Graph& graph, int indexOfFirstUndecided,
     }
 
     if (weightOfDecidedPart +
-            lowerBoundOfUndecidedPart(config, graph, indexOfFirstUndecided, weightOfDecidedPart) >
+            lowerBoundOfUndecidedPart(config, indexOfFirstUndecided, weightOfDecidedPart) >
         minimalSplitWeight) {
         return;
     }
 
     // end recursion
-    if (indexOfFirstUndecided == graph.vertexesCount) {
+    if (indexOfFirstUndecided == configLength) {
         // not valid solution
-        if (computeSizeOfXAndY(config, graph.vertexesCount).first != targetSizeOfSetX) {
+        if (computeSizeOfXAndY(config).first != smallerSetSize) {
             return;
         }
 
-        long weight = computeSplitWeight(config, graph);
+        long weight = computeSplitWeight(config);
         // if best, save it
         if (weight < minimalSplitWeight) {
 #pragma omp critical
             {
                 if (weight < minimalSplitWeight) {
                     minimalSplitWeight = weight;
-                    for (int i = 0; i < graph.vertexesCount; i++) {
+                    for (int i = 0; i < configLength; i++) {
                         minimalSplitConfig[i] = config[i];
                     }
                 }
@@ -130,26 +157,29 @@ void searchAuxSequential(short* config, Graph& graph, int indexOfFirstUndecided,
 
     config[indexOfFirstUndecided] = IN_X;
     indexOfFirstUndecided++;
-    searchAuxSequential(config, graph, indexOfFirstUndecided, targetSizeOfSetX);
+    searchAuxSequential(config, indexOfFirstUndecided);
 
     config[indexOfFirstUndecided - 1] = IN_Y;
-    for (int i = indexOfFirstUndecided; i < graph.vertexesCount; i++) {
+    for (int i = indexOfFirstUndecided; i < configLength; i++) {
         config[i] = NOT_DECIDED;
     }
-    searchAuxSequential(config, graph, indexOfFirstUndecided, targetSizeOfSetX);
+    searchAuxSequential(config, indexOfFirstUndecided);
 }
 
-// auxiliary recursive function, tries all configurations
-void searchAuxParallel(short* config, Graph& graph, int indexOfFirstUndecided,
-                       int& targetSizeOfSetX) {
+/**
+ * Parallel auxiliary recursive function which search through the top layers of the graph using DFS.
+ * @param config vertexes configuration
+ * @param indexOfFirstUndecided index of first vertex from configuration which is not assigned to X
+ * or Y
+ */
+void searchAuxParallel(short *config, int indexOfFirstUndecided) {
     // configurations in this sub tree contains to much vertexes included in smaller set
-    pair<int, int> sizeOfXAndY = computeSizeOfXAndY(config, graph.vertexesCount);
-    if (sizeOfXAndY.first > targetSizeOfSetX ||
-        sizeOfXAndY.second > graph.vertexesCount - targetSizeOfSetX) {
+    pair<int, int> sizeOfXAndY = computeSizeOfXAndY(config);
+    if (sizeOfXAndY.first > smallerSetSize || sizeOfXAndY.second > configLength - smallerSetSize) {
         return;
     }
 
-    long weightOfDecidedPart = computeSplitWeight(config, graph);
+    long weightOfDecidedPart = computeSplitWeight(config);
 
     // all configurations in this sub tree are worse than best solution
     if (weightOfDecidedPart > minimalSplitWeight) {
@@ -157,19 +187,19 @@ void searchAuxParallel(short* config, Graph& graph, int indexOfFirstUndecided,
     }
 
     if (weightOfDecidedPart +
-            lowerBoundOfUndecidedPart(config, graph, indexOfFirstUndecided, weightOfDecidedPart) >
+            lowerBoundOfUndecidedPart(config, indexOfFirstUndecided, weightOfDecidedPart) >
         minimalSplitWeight) {
         return;
     }
 
     // end recursion
-    if (indexOfFirstUndecided == graph.vertexesCount) {
+    if (indexOfFirstUndecided == configLength) {
         // not valid solution
-        if (computeSizeOfXAndY(config, graph.vertexesCount).first != targetSizeOfSetX) {
+        if (computeSizeOfXAndY(config).first != smallerSetSize) {
             return;
         }
 
-        long weight = computeSplitWeight(config, graph);
+        long weight = computeSplitWeight(config);
 
         if (weight < minimalSplitWeight) {
 #pragma omp critical
@@ -177,7 +207,7 @@ void searchAuxParallel(short* config, Graph& graph, int indexOfFirstUndecided,
                 // if best, save it
                 if (weight < minimalSplitWeight) {
                     minimalSplitWeight = weight;
-                    for (int i = 0; i < graph.vertexesCount; i++) {
+                    for (int i = 0; i < configLength; i++) {
                         minimalSplitConfig[i] = config[i];
                     }
                 }
@@ -186,8 +216,8 @@ void searchAuxParallel(short* config, Graph& graph, int indexOfFirstUndecided,
         return;
     }
 
-    short* secondConfig = new short[graph.vertexesCount];
-    for (int i = 0; i < graph.vertexesCount; i++) {
+    short *secondConfig = new short[configLength];
+    for (int i = 0; i < configLength; i++) {
         secondConfig[i] = config[i];
     }
 
@@ -196,40 +226,64 @@ void searchAuxParallel(short* config, Graph& graph, int indexOfFirstUndecided,
 
     indexOfFirstUndecided++;
 
-    if (graph.vertexesCount - indexOfFirstUndecided > 3) {
+    if (configLength - indexOfFirstUndecided > 3) {
 #pragma omp task
-        searchAuxParallel(config, graph, indexOfFirstUndecided, targetSizeOfSetX);
+        searchAuxParallel(config, indexOfFirstUndecided);
 
 #pragma omp task
-        searchAuxParallel(secondConfig, graph, indexOfFirstUndecided, targetSizeOfSetX);
+        searchAuxParallel(secondConfig, indexOfFirstUndecided);
 
 #pragma omp taskwait
         delete[] secondConfig;
     } else {
-        searchAuxSequential(config, graph, indexOfFirstUndecided, targetSizeOfSetX);
-        searchAuxSequential(secondConfig, graph, indexOfFirstUndecided, targetSizeOfSetX);
+        searchAuxSequential(config, indexOfFirstUndecided);
+        searchAuxSequential(secondConfig, indexOfFirstUndecided);
         delete[] secondConfig;
     }
 }
 
-// search in best split
-void search(Graph& graph, int smallerSetSize) {
-    short* initConfig = new short[graph.vertexesCount];
-    minimalSplitConfig = new short[graph.vertexesCount];
-    for (int i = 0; i < graph.vertexesCount; i++) {
-        initConfig[i] = NOT_DECIDED;
-    }
+/**
+ * Search for in best configuration (split of vertexes to two sets X and Y).
+ */
+void search() {
+    configLength = graph.vertexesCount;
+    short *initConfig = new short[configLength];
+    minimalSplitConfig = new short[configLength];
+    fill_n(initConfig, configLength, NOT_DECIDED);
 
 #pragma omp parallel
     {
 #pragma omp single
-        searchAuxParallel(initConfig, graph, 0, smallerSetSize);
+        searchAuxParallel(initConfig, 0);
     }
     delete[] initConfig;
 }
 
-// main - tests
-int main(int argc, char** argv) {
+/**
+ * Test input.
+ * @param testData test data, which contains input and output parameters.
+ */
+void testInput(TestData &testData) {
+    graph = Graph();
+    if (!graph.loadFromFile(testData.filePath)) {
+        exit(1);
+    }
+    smallerSetSize = testData.sizeOfX;
+    search();
+
+    cout << testData.filePath << endl;
+    cout << "Minimal weight: " << minimalSplitWeight << endl;
+    printConfig(minimalSplitConfig);
+
+    if (testData.weight != -1) {
+        assert(minimalSplitWeight == testData.weight);
+    }
+
+    delete[] minimalSplitConfig;
+}
+
+// main function
+int main(int argc, char **argv) {
     steady_clock::time_point start = steady_clock::now();  // timer start
 
     // arguments are: path to input graph, size of smaller set (X) number of threads, optionally
@@ -240,34 +294,24 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    char* pathToGraph = argv[1];
+    char *pathToGraph = argv[1];
     int sizeOfSmallerSet = atoi(argv[2]);
     int numberOfThreads = atoi(argv[3]);
     int solution = -1;
     if (argc == 5) {
         solution = atoi(argv[4]);
     }
-    TestData testData = TestData(pathToGraph, sizeOfSmallerSet, solution);
 
     omp_set_dynamic(0);
     omp_set_num_threads(numberOfThreads);
 
-    Graph graph = Graph();
-    minimalSplitWeight = LONG_MAX;
-    graph.loadFromFile(testData.filePath);
-    search(graph, testData.sizeOfX);
-    cout << testData.filePath << endl;
-    cout << "Minimal weight: " << minimalSplitWeight << endl;
-    printConfig(minimalSplitConfig, graph.vertexesCount);
-    cout << "________________________________" << endl;
-    if (testData.weight != -1) {
-        assert(minimalSplitWeight == testData.weight);
-    }
-    delete[] minimalSplitConfig;
+    TestData testData = TestData(pathToGraph, sizeOfSmallerSet, solution);
+    testInput(testData);
 
     steady_clock::time_point end = steady_clock::now();  // timer stop
     auto time = duration<double>(end - start);
     cout << "time: " << std::round(time.count() * 1000.0) / 1000.0 << "s" << endl;
-    
+    cout << "________________________________" << endl;
+
     return 0;
 }
