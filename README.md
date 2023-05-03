@@ -79,58 +79,82 @@ Master-slave parallelization is a more complex approach than the previous ones. 
 
 ## How to run
 
-To run the program, follow these steps:
+To run the program, do the following:
 
--   Type the following command in your terminal or create a Docker container for it.
+-   Clone the repository:
+    ```bash
+    git clone https://github.com/janbabak/Minimum-cut-of-edge-weighted-graph.git
+    ```
+-   Navigate to the cloned folder:
+    ```bash
+    cd Minimum-cut-of-edge-weighted-graph
+    ```
+-   If you don't wan to install the dependencies on your machine, you can use the provided Docker image.
 -   Build the Docker image using the command below:
     ```bash
     docker build -t minimum-cut-img .
     ```
 -   Run the Docker image in interactive mode using the following command:
+
     ```bash
     docker run -it -v `pwd`:/work --name minimum-cut minimum-cut-img
     ```
--   Compile the code using the command:
-    ```bash
-    make all
-    ```
--   Run the code sequentially by performing the following steps:
 
-    -   Checkout to the right branch on your computer using the command:
+-   **Sequential solution**
+
+    -   Checkout to the right branch using the command:
         ```bash
         git checkout sequential_solution
         ```
-    -   Run the program in the Docker container. The first argument is the input file containing the graph, followed by the size of $X$. An optional argument is the solution for testing purposes.
+    -   Compile the code using the command:
+        ```bash
+        make
+        ```
+    -   Run the program. The first argument is the input file containing the graph, followed by the size of $X$. An optional argument is the solution for testing purposes.
         ```bash
         ./pdp graf_mro/graf_30_10.txt 10 4636
         ```
-    -   **Task parallelism**
-        -   Checkout to the right branch on your computer using the command:
-            ```bash
-            git checkout task_parallelism
-            ```
-        -   Run the program (in Docker container). The first argument is input file containing the graph followed by the size of $X$ and number of threads. Than is and optional argument - solution for testing purposes.
-            ```bash
-            ./pdp graf_mro/graf_30_10.txt 10 5 4636
-            ```
-    -   **Data parallelism**
-        -   Checkout to the right branch on your computer using the command:
-            ```bash
-            git checkout data_parallelism
-            ```
-        -   Run the program (in Docker container). The first argument is input file containing the graph followed by the size of $X$ and number of threads. Than is and optional argument - solution for testing purposes.
-            ```bash
-            ./pdp graf_mro/graf_30_10.txt 10 5 4636
-            ```
-    -   **Master slave (multi process) parallelism**
-        -   Checkout to the right branch on your computer using the command:
-            ```bash
-            git checkout process_parallelism
-            ```
-        -   Run the program (in Docker container). The np means number of processes. The first argument of my program is input file containing the graph followed by the size of $X$ and number of threads. Than is and optional argument - solution for testing purposes.
-            ```bash
-            mpirun -np 4 ./pdp graf_mro/graf_10_5.txt 5 10 974
-            ```
+
+-   **Task parallelism**
+    -   Checkout to the right branch using the command:
+        ```bash
+        git checkout task_parallelism
+        ```
+    -   Compile the code using the command:
+        ```bash
+        make
+        ```
+    -   Run the program. The first argument is input file containing the graph followed by the size of $X$ and number of threads. Than is and optional argument - solution for testing purposes.
+        ```bash
+        ./pdp graf_mro/graf_30_10.txt 10 5 4636
+        ```
+-   **Data parallelism**
+    -   Checkout to the right branch using the command:
+        ```bash
+        git checkout data_parallelism
+        ```
+    -   Compile the code using the command:
+        ```bash
+        make
+        ```
+    -   Run the program. The first argument is input file containing the graph followed by the size of $X$ and number of threads. Than is and optional argument - solution for testing purposes.
+        ```bash
+        ./pdp graf_mro/graf_30_10.txt 10 5 4636
+        ```
+-   **Master slave (multi process) parallelism**
+
+    -   Checkout to the right branch using the command:
+        ```bash
+        git checkout process_parallelism
+        ```
+    -   Compile the code using the command:
+        ```bash
+        make
+        ```
+    -   Run the program. The np means number of processes. The first argument of my program is input file containing the graph followed by the size of $X$ and number of threads. Than is and optional argument - solution for testing purposes.
+        ```bash
+        mpirun -np 4 ./pdp graf_mro/graf_10_5.txt 5 10 974
+        ```
 
 -   Generated files can be removed by running
     ```bash
